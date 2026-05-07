@@ -1,0 +1,171 @@
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model Tag {
+  id Int @id @default(autoincrement())
+  name String @unique
+  questions Question[]
+}
+
+model Question {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String   @db.Text
+  tagId Int
+  tag Tag @relation(fields: [tagId], references: [id])
+  difficulty   Difficulty
+  initSql      String   @db.Text
+  dbTableName  String?  // The primary table used in this challenge (for preview)
+  solutionSql  String?  @db.Text
+  expectedOutput Json
+  createdAt    DateTime @default(now())
+  submissions  Submission[]
+  activityLogs ActivityLog[]
+  contestQuestions ContestQuestion[]
+  progress     UserQuestionProgress[]
+}
+
+model Submission {
+  id              Int            @id @default(autoincrement())
+  userId          Int
+  user            User           @relation(fields: [userId], references: [id])
+  questionId      Int
+  question        Question       @relation(fields: [questionId], references: [id])
+  code            String         @db.Text
+  status          String         // "SUCCESS", "FAIL", "ERROR"
+  executionTimeMs Int?
+  errorMessage    String?        @db.Text
+  output          Json?
+  sessionId       String?        // Grouping for AI analysis
+  createdAt       DateTime       @default(now())
+}
+
+model ActivityLog {
+  id              Int            @id @default(autoincrement())
+  userId          Int
+  user            User           @relation(fields: [userId], references: [id])
+  questionId      Int
+  question        Question       @relation(fields: [questionId], references: [id])
+  code            String         @db.Text
+  status          String         // "SUCCESS", "ERROR"
+  executionTimeMs Int?
+  errorMessage    String?        @db.Text
+  sessionId       String?        // Grouping for AI analysis
+  createdAt       DateTime       @default(now())
+}
+
+model UserQuestionProgress {
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  questionId  Int
+  question    Question @relation(fields: [questionId], references: [id])
+  isCompleted Boolean  @default(false)
+  attempts    Int      @default(0)
+  bestCode    String?  @db.Text
+  lastAttempt DateTime @default(now())
+
+  @@id([userId, questionId])
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  name String
+  email String @unique
+  password String
+  friendCode String @unique
+  createdAt DateTime @default(now())
+  submissions Submission[]
+  activityLogs ActivityLog[]
+
+  // Social Relations
+  following Follows[] @relation("following")
+  followers Follows[] @relation("follower")
+  
+  // Invites
+  sentInvites     FriendInvite[] @relation("sentInvites")
+  receivedInvites FriendInvite[] @relation("receivedInvites")
+
+  // Contests
+  contestsCreated      Contest[]
+  contestParticipations ContestParticipant[]
+  progress             UserQuestionProgress[]
+  aiReports            AiReport[]
+}
+
+model FriendInvite {
+  id         Int      @id @default(autoincrement())
+  senderId   Int
+  sender     User     @relation("sentInvites", fields: [senderId], references: [id])
+  receiverId Int
+  receiver   User     @relation("receivedInvites", fields: [receiverId], references: [id])
+  status     String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt  DateTime @default(now())
+
+  @@unique([senderId, receiverId])
+}
+
+model Follows {
+  follower    User @relation("follower", fields: [followerId], references: [id])
+  followerId  Int
+  following   User @relation("following", fields: [followingId], references: [id])
+  followingId Int
+
+  @@id([followerId, followingId])
+}
+
+model Contest {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String?
+  startTime    DateTime
+  endTime      DateTime
+  creatorId    Int
+  creator      User     @relation(fields: [creatorId], references: [id])
+  
+  questions    ContestQuestion[]
+  participants ContestParticipant[]
+  createdAt    DateTime @default(now())
+}
+
+model ContestQuestion {
+  contestId  Int
+  questionId Int
+  order      Int      @default(0)
+  contest    Contest  @relation(fields: [contestId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id])
+
+  @@id([contestId, questionId])
+}
+
+model ContestParticipant {
+  userId     Int
+  contestId  Int
+  score      Int      @default(0)
+  finishedAt DateTime?
+  user       User     @relation(fields: [userId], references: [id])
+  contest    Contest  @relation(fields: [contestId], references: [id])
+
+  @@id([userId, contestId])
+}
+
+model AiReport {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  timeframeDays Int
+  reportData    Json
+  createdAt     DateTime @default(now())
+}
