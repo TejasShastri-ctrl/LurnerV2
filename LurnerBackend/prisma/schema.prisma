@@ -49,6 +49,7 @@ model Submission {
   executionTimeMs Int?
   errorMessage    String?        @db.Text
   output          Json?
+  diagnostic      Json?
   sessionId       String?        // Grouping for AI analysis
   createdAt       DateTime       @default(now())
 }
