@@ -81,6 +81,7 @@ export const submitHandler = async (req, res) => {
             executionTimeMs: executionTimeMs || 0,
             errorMessage: errorMessage || null,
             output: results || null,
+            diagnostic: diagnostic || null,
             sessionId: sessionId || null
         });
 
