@@ -4,14 +4,18 @@ import { authMiddleware } from "../../middleware/auth.js";
 
 const router = express.Router();
 
-/**
- * Submission Routes (Protected)
- */
+import rateLimit from 'express-rate-limit';
+
+const submissionLimiter = rateLimit({
+    windowMs: 2000,
+    max: 1, // each IP limited to 1 req per windowMs
+    message: { error: "You are submitting too fast. Please wait a moment." },
+});
 
 // Submit a solution for validation
-router.post("/", authMiddleware, submissionController.submitHandler);
+router.post("/", submissionLimiter, authMiddleware, submissionController.submitHandler);
 
-// Get user submission history for a question
+// submission history
 router.get("/history/:questionId", authMiddleware, submissionController.getHistory);
 
 

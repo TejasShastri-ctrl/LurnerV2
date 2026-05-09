@@ -23,7 +23,7 @@ export const authMiddleware = async (req, res, next) => {
             return res.status(404).json({ error: "User not found." });
         }
 
-        // Attach user to request for use in controllers
+        // for controller use
         const { password: _, ...userWithoutPassword } = user;
         req.user = userWithoutPassword;
         next();

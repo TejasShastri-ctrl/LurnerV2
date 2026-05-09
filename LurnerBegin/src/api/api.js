@@ -10,7 +10,7 @@ export const fetchAllQuestions = async (token) => {
     try {
         const headers = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
-        
+
         const res = await fetch(`${BASE_URL}/questions`, { headers });
         const data = await res.json();
         return Array.isArray(data) ? data : [];
@@ -24,7 +24,7 @@ export const fetchQueById = async (id, token) => {
     try {
         const headers = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
-        
+
         const res = await fetch(`${BASE_URL}/questions/${id}`, { headers });
         return await res.json();
     } catch (e) {
@@ -56,7 +56,7 @@ export const login = async (email, password) => {
 export const submitSolution = async (sql, questionId, token, sessionId) => {
     const res = await fetch(`${BASE_URL}/submissions`, {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
@@ -80,20 +80,28 @@ export const fetchHistory = async (questionId, token) => {
 export const executeSql = async (sql, questionId, token, sessionId) => {
     const res = await fetch(`${BASE_URL}/questions/execute`, {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ sql, questionId, sessionId })
     });
-    return await res.json();
+
+    const data = await res.json();
+    // 429 is considered a success and hence does not trigger error catching. Have to do it manually
+    if (!res.ok) {
+        throw { status: res.status, ...data }
+    }
+
+    return data;
+
 }
 
 // Social & Invites
 export const sendInvite = async (code, token) => {
     const res = await fetch(`${BASE_URL}/social/invite`, {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
@@ -179,9 +187,9 @@ export const fetchPerformanceTelemetry = async (token) => {
 export const generateAiReport = async (token, days = 7) => {
     const res = await fetch(`${BASE_URL}/analytics/ai-report`, {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
+            'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ days })
     });

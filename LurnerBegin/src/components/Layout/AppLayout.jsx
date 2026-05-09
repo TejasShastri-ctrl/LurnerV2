@@ -92,7 +92,7 @@ export default function AppLayout({ children }) {
             padding: '9px 12px', borderRadius: 8,
             fontSize: '0.855rem', fontWeight: 500, marginBottom: 2,
             color: 'rgba(201,209,224,0.3)',
-            cursor: 'default', userSelect: 'none',
+            cursor: 'default',
           }}>
             <Trophy size={16} strokeWidth={1.8} />
             Contests

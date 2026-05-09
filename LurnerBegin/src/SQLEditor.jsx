@@ -14,8 +14,8 @@ function Toast({ toasts, dismiss }) {
       {toasts.map(t => {
         const colors = {
           success: { bg: 'var(--success-bg)', border: 'var(--success-border)', accent: 'var(--success)', text: '#065f46', sub: '#047857' },
-          error:   { bg: 'var(--danger-bg)',  border: 'var(--danger-border)',  accent: 'var(--danger)',  text: '#991b1b', sub: '#b91c1c' },
-          info:    { bg: 'var(--info-bg)',     border: 'var(--info-border)',    accent: 'var(--info)',    text: '#0c4a6e', sub: '#0369a1' },
+          error: { bg: 'var(--danger-bg)', border: 'var(--danger-border)', accent: 'var(--danger)', text: '#991b1b', sub: '#b91c1c' },
+          info: { bg: 'var(--info-bg)', border: 'var(--info-border)', accent: 'var(--info)', text: '#0c4a6e', sub: '#0369a1' },
         };
         const c = colors[t.type] || colors.info;
         return (
@@ -65,22 +65,22 @@ function useToast() {
 
 /* ── Main component ── */
 export function SqlExecutionWindow() {
-  const { id }                   = useParams();
-  const navigate                 = useNavigate();
+  const { id } = useParams();
+  const navigate = useNavigate();
   const { token, isAuthenticated } = useAuth();
   const { toasts, add, dismiss } = useToast();
 
-  const [question, setQuestion]        = useState(null);
-  const [query, setQuery]              = useState('SELECT * FROM employees');
-  const [results, setResults]          = useState([]);
-  const [history, setHistory]          = useState([]);
+  const [question, setQuestion] = useState(null);
+  const [query, setQuery] = useState('SELECT * FROM employees');
+  const [results, setResults] = useState([]);
+  const [history, setHistory] = useState([]);
   const [errorMessage, setErrorMessage] = useState(null);
-  const [executing, setExecuting]      = useState(false);
+  const [executing, setExecuting] = useState(false);
   const [executionTimeMs, setExecutionTimeMs] = useState(0);
-  const [loading, setLoading]          = useState(true);
-  const [activeTab, setActiveTab]      = useState('result');
-  const [diagnostic, setDiagnostic]    = useState(null);
-  const [sessionId]                    = useState(() => crypto.randomUUID?.() || Math.random().toString(36).substring(2, 15));
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('result');
+  const [diagnostic, setDiagnostic] = useState(null);
+  const [sessionId] = useState(() => crypto.randomUUID?.() || Math.random().toString(36).substring(2, 15));
 
   const loadHistory = useCallback(async () => {
     if (id && token) {
@@ -105,6 +105,7 @@ export function SqlExecutionWindow() {
     try {
       const data = await executeSql(query, id, token, sessionId);
       setExecutionTimeMs(Math.round(performance.now() - start));
+      console.log('FETCHED DATA : ', data);
       if (data.errorMessage) {
         setErrorMessage(data.errorMessage);
         add('error', 'Query Error', data.errorMessage.substring(0, 80));
@@ -113,13 +114,21 @@ export function SqlExecutionWindow() {
         console.log('returned result : ', data.results);
         console.log('expected result : ', question.expectedOutput);
         setActiveTab('result');
+        // loadHistory();
       }
-      loadHistory();
-    } catch {
+    } catch (e) {
+      // custom throw btw, 429 counts as a success so catching it regularly does not work
+      // check api.js
+      if(e.status === 429) {
+        alert("You are running the code too frequently. Please wait for 2 seconds before another run");
+        return;
+      }
       setErrorMessage('Network error: Could not connect to the database engine.');
       add('error', 'Network Error', 'Could not connect to the database engine.');
+      console.log(e);
     } finally {
-      setExecuting(false);
+      loadHistory()
+      setExecuting(false);;
     }
   };
 
@@ -128,7 +137,7 @@ export function SqlExecutionWindow() {
     try {
       const data = await submitSolution(query, id, token, sessionId);
       setDiagnostic(data.diagnostic);
-      
+
       if (data.isCorrect) {
         add('success', 'Correct!', "You've solved this challenge.");
       } else {
@@ -186,7 +195,7 @@ export function SqlExecutionWindow() {
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6"/>
+                <polyline points="15 18 9 12 15 6" />
               </svg>
               Questions
             </button>
@@ -231,7 +240,7 @@ export function SqlExecutionWindow() {
 
           {/* Left: Problem brief */}
           <div style={{
-            width: "40%", flexShrink: 0,  
+            width: "40%", flexShrink: 0,
             borderRight: '1px solid var(--border)',
             display: 'flex', flexDirection: 'column',
             background: 'var(--bg-content)',
@@ -323,9 +332,9 @@ export function SqlExecutionWindow() {
                 display: 'flex', alignItems: 'center', padding: '0 12px', gap: 2,
                 flexShrink: 0,
               }}>
-                <TabButton active={activeTab === 'result'}   onClick={() => setActiveTab('result')}>Output</TabButton>
+                <TabButton active={activeTab === 'result'} onClick={() => setActiveTab('result')}>Output</TabButton>
                 <TabButton active={activeTab === 'expected'} onClick={() => setActiveTab('expected')}>Expected</TabButton>
-                 <TabButton active={activeTab === 'history'}  onClick={() => setActiveTab('history')}>
+                <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')}>
                   History {history.length > 0 && `(${history.length})`}
                 </TabButton>
                 <TabButton active={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')}>
@@ -349,10 +358,10 @@ export function SqlExecutionWindow() {
 
               {/* Tab body */}
               <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-                {activeTab === 'result'   && <DataGrid data={results} error={errorMessage} />}
+                {activeTab === 'result' && <DataGrid data={results} error={errorMessage} />}
                 {activeTab === 'expected' && <DataGrid data={question.expectedOutput} />}
                 {activeTab === 'analysis' && <DiagnosticReport data={diagnostic} />}
-                {activeTab === 'history'  && (
+                {activeTab === 'history' && (
                   <div style={{ padding: '14px' }}>
                     {history.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
@@ -396,8 +405,8 @@ export function SqlExecutionWindow() {
 function HistoryRow({ h, onRestore }) {
   const statusColors = {
     SUCCESS: 'var(--success)',
-    FAIL:    'var(--warning)',
-    ERROR:   'var(--danger)',
+    FAIL: 'var(--warning)',
+    ERROR: 'var(--danger)',
   };
   return (
     <div style={{
@@ -578,14 +587,14 @@ function DiagnosticReport({ data }) {
     <div style={{ padding: '16px' }}>
       <h3 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
         Structural SQL Diagnosis
       </h3>
 
       {mismatches.length === 0 ? (
-        <div style={{ 
-          padding: '16px', background: 'var(--success-bg)', border: '1px solid var(--success-border)', 
+        <div style={{
+          padding: '16px', background: 'var(--success-bg)', border: '1px solid var(--success-border)',
           borderRadius: 8, color: 'var(--success)', fontSize: '0.84rem', display: 'flex', gap: 10
         }}>
           <span>✅</span>

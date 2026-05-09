@@ -5,14 +5,9 @@ import { initSocket } from "./socket.js";
 
 dotenv.config();
 
-/**
- * Server Entry Point
- */
-
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 
-// Initialize WebSockets
 initSocket(server);
 
 server.listen(PORT, () => {
