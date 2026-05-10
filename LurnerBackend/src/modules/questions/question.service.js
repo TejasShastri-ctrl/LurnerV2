@@ -8,7 +8,6 @@ export const getQuestionById = async (id) => {
 };
 
 export const getAllQuestions = async (userId) => {
-    // Ensure userId is a number or a value that won't match any user (like -1)
     const targetUserId = userId ? parseInt(userId) : -1;
 
     return prisma.question.findMany({

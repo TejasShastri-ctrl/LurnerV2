@@ -25,6 +25,7 @@
     "node-sql-parser": "^5.4.0",
     "nodemon": "^3.1.14",
     "pg": "^8.20.0",
+    "piscina": "^5.1.4",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {

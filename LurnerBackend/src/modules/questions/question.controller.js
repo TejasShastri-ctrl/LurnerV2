@@ -28,7 +28,6 @@ export const executeSqlHandler = async (req, res) => {
             results = null;
         }
 
-        // 1. Save "Run" activity to ActivityLog for AI Telemetry
         await prisma.activityLog.create({
             data: {
                 userId,
@@ -43,7 +42,7 @@ export const executeSqlHandler = async (req, res) => {
 
         res.json({ results, executionTimeMs, errorMessage });
     } catch (e) {
-        console.error("❌ SQL Execution Error (Run):", e);
+        console.error("SQL Execution Error (Run): ", e);
         res.status(500).json({ error: e.message });
     }
 };
