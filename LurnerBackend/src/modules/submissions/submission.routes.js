@@ -4,7 +4,7 @@ import { authMiddleware } from "../../middleware/auth.js";
 import submissionLimiter from "../../middleware/rateLimiter.js";
 
 const router = express.Router();
-router.post("/", submissionLimiter, authMiddleware, submissionController.submitHandler);
+router.post("/", authMiddleware, submissionLimiter, submissionController.submitHandler);
 router.get("/history/:questionId", authMiddleware, submissionController.getHistory); //submission history
 
 export default router;

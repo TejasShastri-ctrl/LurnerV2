@@ -14,8 +14,7 @@ export default function ({ initSql, userCode }) {
             db.exec(initSql);
         }
         const stmt = db.prepare(userCode);
-
-        // 3. Execute
+        
         // DatabaseSync.prepare doesn't have .reader, but stmt.all() works for SELECT
         // and stmt.run() works for INSERT/UPDATE/DELETE.
         const isSelect = userCode.trim().toLowerCase().startsWith("select");

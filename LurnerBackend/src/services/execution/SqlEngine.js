@@ -5,26 +5,21 @@ import os from 'os';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Create a single Piscina pool instance.
+// singleton worker pool
 const pool = new Piscina({
     filename: path.join(__dirname, 'SqlWorker.mjs'),
     minThreads: 2,
     maxThreads: Math.max(4, os.cpus().length * 1.5),
-    maxQueue: 100, // Maximum number of tasks waiting in the queue
-    idleTimeout: 30000 // 30 seconds idle timeout for threads
+    maxQueue: 100,
+    idleTimeout: 30000
 });
 
-/**
- * Executes SQL in an isolated Worker Thread using SQLite via Piscina.
- */
 export async function executeSql(initSql, userCode) {
     const startTime = Date.now();
     
-    // Piscina supports AbortController for terminating tasks
+    // piscina supports AbortController
     const ac = new AbortController();
-    
-    // Set a security timeout (500ms)
-    // Aborting the task will also try to terminate the thread executing it, which is useful for infinite loops.
+
     const timeout = setTimeout(() => {
         ac.abort(new Error("Query Timed Out (Max 500ms). Your query is too heavy for the sandbox!"));
     }, 500);
@@ -44,7 +39,7 @@ export async function executeSql(initSql, userCode) {
                 executionTimeMs
             };
         } else {
-            // Safe reject format expected by controller
+            // safe reject format the controller expects
             throw {
                 error: response.error,
                 executionTimeMs
@@ -54,7 +49,7 @@ export async function executeSql(initSql, userCode) {
         clearTimeout(timeout);
         const executionTimeMs = Date.now() - startTime;
         
-        // Handle Piscina AbortError or our custom abort message
+        // custom error throwing karr
         if (err.name === 'AbortError' || (err.message && err.message.includes('Timed Out'))) {
              throw {
                  error: "Query Timed Out (Max 500ms). Your query is too heavy for the sandbox!",
@@ -66,8 +61,7 @@ export async function executeSql(initSql, userCode) {
         if (err.error !== undefined) {
             throw err;
         }
-
-        // Generic fallback error
+        // generic
         throw {
             error: err.message || "Unknown execution error",
             executionTimeMs
