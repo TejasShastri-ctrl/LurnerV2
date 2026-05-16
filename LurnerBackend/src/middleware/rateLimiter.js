@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, {ipKeyGenerator} from "express-rate-limit";
 
 const submissionLimiter = rateLimit({
     windowMs: 2000,
@@ -6,7 +6,10 @@ const submissionLimiter = rateLimit({
     message: { error: "You are submitting too fast. Please wait a moment." },
     // IP nahi chalega na baccha, key generator use karo
     keyGenerator: (req) => {
-        return req.user?.id ? req.user.id.toString() : req.ip;
+        if(req.user?.id) {
+            return `user:${req.user.id}`;
+        }
+        return ipKeyGenerator(req.ip);
     }
 });
 
