@@ -8,7 +8,6 @@ export const getQuestionById = async (id) => {
 };
 
 export const getAllQuestions = async (userId) => {
-    // Ensure userId is a number or a value that won't match any user (like -1)
     const targetUserId = userId ? parseInt(userId) : -1;
 
     return prisma.question.findMany({
@@ -27,3 +26,54 @@ export const getAllQuestions = async (userId) => {
         }
     });
 };
+
+export const getAllTags = async () => {
+    return prisma.tag.findMany();
+};
+
+export const createQuestion = async (data) => {
+    const {title, description, difficulty, tagId, initSql, dbTableName, solutionSql, expectedOutput} = data;
+    const question = await prisma.question.create({
+        data : {
+            title,
+            description,
+            difficulty,
+            tagId,
+            initSql,
+            dbTableName,
+            solutionSql,
+            expectedOutput
+        }
+    });
+    return question;
+}
+
+export const updateQuestion = async (id, data) => {
+    const {title, description, difficulty, tagId, initSql, dbTableName, solutionSql, expectedOutput} = data;
+    const updatedQue = await prisma.question.update({
+        where: {id: parseInt(id)},
+        data: {
+            title,
+            description,
+            difficulty,
+            tagId,
+            initSql,
+            dbTableName,
+            solutionSql,
+            expectedOutput
+        }
+    });
+
+    return updatedQue;
+}
+
+export const deleteQuestion = async (id) => {
+    try {
+        await prisma.question.delete({
+            where: {id: parseInt(id)}
+        })
+        return "Deleted";
+    } catch(e) {
+        throw e;
+    }
+}

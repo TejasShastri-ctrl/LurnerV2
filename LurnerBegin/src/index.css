@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
 
 /* ============================================================
    LURNER — Refined Light Design System
@@ -6,6 +7,8 @@
    ============================================================ */
 
 :root {
+  /* Toasts */
+
   /* — Backgrounds — */
   --bg-app:         #f5f6f8;   /* Soft neutral shell */
   --bg-content:     #ffffff;   /* White cards & panels */
@@ -112,6 +115,7 @@ code, pre, kbd, .mono {
 /* ============================================================
    UTILITY CLASSES
    ============================================================ */
+
 
 /* Cards */
 .card {

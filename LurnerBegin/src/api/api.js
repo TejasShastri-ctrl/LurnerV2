@@ -1,10 +1,5 @@
 const BASE_URL = 'http://localhost:3000/api';
 
-/**
- * API Helpers for Lurner.
- * Centralized logic for all backend communication.
- */
-
 // Questions
 export const fetchAllQuestions = async (token) => {
     try {
@@ -20,6 +15,20 @@ export const fetchAllQuestions = async (token) => {
     }
 }
 
+export const fetchAllTags = async (token) => {
+    try {
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`${BASE_URL}/questions/tags`, { headers });
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.error("error while fetching tags:", e);
+        return [];
+    }
+}
+
 export const fetchQueById = async (id, token) => {
     try {
         const headers = {};
@@ -31,6 +40,63 @@ export const fetchQueById = async (id, token) => {
         console.error(e);
         return null;
     }
+}
+
+// admin endpoint
+export const createQuestion = async (data, token) => {
+    const res = await fetch(`${BASE_URL}/questions/createQuestion`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    const resdata = await res.json();
+    if (!res.ok) {
+        throw new Error(resdata.error || "(api.js) failed to create question, check the issue out");
+    }
+    return resdata;
+}
+
+export const generateExpectedOutput = async (initSql, solutionSql, token) => {
+    const res = await fetch(`${BASE_URL}/questions/generateOutput`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ initSql, solutionSql })
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to generate output");
+    }
+    return await res.json();
+}
+
+export const updateQuestion = async (id, data, token) => {
+    const res = await fetch(`${BASE_URL}/questions/update/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error("Failed to update question");
+    return await res.json();
+}
+
+export const deleteQuestion = async (id, token) => {
+    const res = await fetch(`${BASE_URL}/questions/delete/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+    if (!res.ok) throw new Error("Failed to delete question");
+    return await res.json();
 }
 
 // Authentication

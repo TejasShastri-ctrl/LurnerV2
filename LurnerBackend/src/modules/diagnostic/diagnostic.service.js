@@ -1,4 +1,7 @@
 // Abstract Syntax Tree (AST) diagnostics service
+// idk how much use this would be for the specific intended use case
+// I should probably remove this or drastically improve this.
+// because this service is pretty useless
 
 import pkg from 'node-sql-parser';
 const { Parser } = pkg;
@@ -7,7 +10,7 @@ const parser = new Parser();
 
 export const getQuerySkeleton = (sql) => {
     try {
-        // node-sql-parser handles multiple dialects, defaulting to postgres
+        // default parsing is postgres btw
         const ast = parser.astify(sql);
         
         // Handle cases where ast might be an array (multiple queries)
@@ -60,9 +63,7 @@ export const getQuerySkeleton = (sql) => {
     }
 };
 
-/**
- * Compares User Query vs Solution Query and returns structural mismatches.
- */
+// user vs solution query comparison
 export const compareQueries = (userSql, solutionSql) => {
     const userSkeleton = getQuerySkeleton(userSql);
     const solutionSkeleton = getQuerySkeleton(solutionSql);
@@ -93,7 +94,7 @@ export const compareQueries = (userSql, solutionSql) => {
     }
 
     // Check Columns
-    // Rule: If either side uses '*', we consider the columns 'potentially matching' 
+    // If either side uses '*', we consider the columns 'potentially matching' 
     // because we don't have schema-level expansion here.
     const userHasWildcard = userSkeleton.columns.includes('*');
     const solutionHasWildcard = solutionSkeleton.columns.includes('*');

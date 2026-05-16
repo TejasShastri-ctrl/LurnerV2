@@ -1,0 +1,9 @@
+:root {
+  /* Set your custom width */
+  --toastify-toast-width: 450px; 
+}
+
+/* To change the height specifically */
+.Toastify__toast {
+  min-height: 100px;
+}
