@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
         if (storedUser && token) {
             setUser(JSON.parse(storedUser));
         }
-        console.log("User found during session restoration : ", storedUser);
+        console.log("User found during session restoration(localstorage fetch lmao) : ", storedUser);
         setLoading(false);
     }, [token]);
 

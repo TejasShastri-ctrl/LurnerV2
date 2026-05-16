@@ -9,6 +9,7 @@ import AppLayout from './components/Layout/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { SocketProvider } from './context/SocketContext'
+import Admin from './pages/Admin'
 
 /**
  * GuestRoute — Redirects already-authenticated users away from login/register.
@@ -40,6 +41,9 @@ function App() {
               } />
               <Route path="/editor/:id" element={
                 <ProtectedRoute><SqlExecutionWindow /></ProtectedRoute>
+              } />
+              <Route path="/admin" element={
+                <ProtectedRoute><Admin /></ProtectedRoute>
               } />
 
               {/* Fallback */}

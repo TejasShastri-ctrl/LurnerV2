@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { replace, useNavigate } from 'react-router-dom';
 import { fetchAllQuestions } from '../api/api.js';
 import { useAuth } from '../context/AuthContext';
 
 /* ── Difficulty metadata ── */
 const DIFFICULTY_META = {
-  EASY:   { label: 'Easy',   cls: 'badge-easy' },
+  EASY: { label: 'Easy', cls: 'badge-easy' },
   MEDIUM: { label: 'Medium', cls: 'badge-medium' },
-  HARD:   { label: 'Hard',   cls: 'badge-hard' },
+  HARD: { label: 'Hard', cls: 'badge-hard' },
 };
 
-/* ── Difficulty badge ── */
 function DiffBadge({ difficulty }) {
   const m = DIFFICULTY_META[difficulty] || DIFFICULTY_META.EASY;
   return <span className={`badge ${m.cls}`}>{m.label}</span>;
@@ -51,10 +50,10 @@ function FilterPill({ active, children, onClick }) {
 export default function Home() {
   const { token } = useAuth();
   const [questions, setQuestions] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [filter, setFilter]       = useState('ALL');
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [search, setSearch]       = useState('');
+  const [search, setSearch] = useState('');
   const [hoveredId, setHoveredId] = useState(null);
   const navigate = useNavigate();
 
@@ -88,11 +87,11 @@ export default function Home() {
   });
 
   const counts = {
-    ALL:      safeQuestions.length,
-    EASY:     safeQuestions.filter(q => q.difficulty === 'EASY').length,
-    MEDIUM:   safeQuestions.filter(q => q.difficulty === 'MEDIUM').length,
-    HARD:     safeQuestions.filter(q => q.difficulty === 'HARD').length,
-    SOLVED:   safeQuestions.filter(q => q.progress && q.progress[0]?.isCompleted).length,
+    ALL: safeQuestions.length,
+    EASY: safeQuestions.filter(q => q.difficulty === 'EASY').length,
+    MEDIUM: safeQuestions.filter(q => q.difficulty === 'MEDIUM').length,
+    HARD: safeQuestions.filter(q => q.difficulty === 'HARD').length,
+    SOLVED: safeQuestions.filter(q => q.progress && q.progress[0]?.isCompleted).length,
     UNSOLVED: safeQuestions.filter(q => !q.progress || !q.progress[0]?.isCompleted).length,
   };
 
@@ -156,7 +155,7 @@ export default function Home() {
             style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}
             width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
           >
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             type="text"
@@ -184,6 +183,7 @@ export default function Home() {
         borderRadius: 'var(--radius-md)',
         overflow: 'hidden',
         boxShadow: 'var(--shadow-sm)',
+        // width: "100%"
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
           <thead>
@@ -214,7 +214,8 @@ export default function Home() {
                 return (
                   <tr
                     key={q.id}
-                    onClick={() => navigate(`/editor/${q.id}`)}
+                    // onClick={() => navigate(`/editor/${q.id}`)}
+                    onClick={() => window.open(`/editor/${q.id}`, '_blank')}
                     onMouseEnter={() => setHoveredId(q.id)}
                     onMouseLeave={() => setHoveredId(null)}
                     style={{
@@ -228,7 +229,7 @@ export default function Home() {
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                       {isSolved ? (
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"/>
+                          <polyline points="20 6 9 17 4 12" />
                         </svg>
                       ) : isAttempted ? (
                         <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--warning)', margin: '0 auto' }} />
@@ -280,7 +281,7 @@ export default function Home() {
                       }}>
                         Solve
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                          <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
                         </svg>
                       </span>
                     </td>

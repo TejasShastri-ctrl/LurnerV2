@@ -4,6 +4,8 @@ import Editor from "@monaco-editor/react";
 import { fetchQueById, submitSolution, executeSql, fetchHistory } from "./api/api";
 import { useAuth } from "./context/AuthContext";
 
+import { ToastContainer, toast } from 'react-toastify';
+
 /* ── Toast component ── */
 function Toast({ toasts, dismiss }) {
   return (
@@ -100,12 +102,13 @@ export function SqlExecutionWindow() {
 
   const handleExecute = async () => {
     if (!isAuthenticated) { add('info', 'Sign in required', 'Please sign in to run queries.'); return navigate('/login', { replace: true }); }
-    setExecuting(true); setErrorMessage(null); setResults([]);
+    setExecuting(true); setErrorMessage(null);
     const start = performance.now();
     try {
       const data = await executeSql(query, id, token, sessionId);
       setExecutionTimeMs(Math.round(performance.now() - start));
       console.log('FETCHED DATA : ', data);
+      setResults([]);
       if (data.errorMessage) {
         setErrorMessage(data.errorMessage);
         add('error', 'Query Error', data.errorMessage.substring(0, 80));
@@ -120,9 +123,11 @@ export function SqlExecutionWindow() {
       // custom throw btw, 429 counts as a success so catching it regularly does not work
       // check api.js
       if(e.status === 429) {
-        alert("You are running the code too frequently. Please wait for 2 seconds before another run");
+        // alert("You are running the code too frequently. Please wait for 2 seconds before another run");
+        toast.warn("You are running the query too frequently. Please wait 2 seconds before trying");
         return;
       }
+
       setErrorMessage('Network error: Could not connect to the database engine.');
       add('error', 'Network Error', 'Could not connect to the database engine.');
       console.log(e);
@@ -146,7 +151,13 @@ export function SqlExecutionWindow() {
         if (data.diagnostic?.mismatches?.length > 0) setActiveTab('analysis');
       }
       loadHistory();
-    } catch { add('error', 'Submit failed', 'Please try again.'); }
+    } catch (e) {
+      if (e.status === 429) {
+        toast.warn("You are submitting too frequently. Please wait 2 seconds before trying");
+        return;
+      }
+      add('error', 'Submit failed', 'Please try again.');
+    }
   };
 
   const restoreFromHistory = (code) => {
@@ -173,6 +184,7 @@ export function SqlExecutionWindow() {
       <Toast toasts={toasts} dismiss={dismiss} />
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <ToastContainer style={{ width: '250px'}} toastStyle={{ minHeight: "120px" }} theme="dark" position="top-right" autoClose={3000} />
 
         {/* ── Toolbar ── */}
         <div style={{

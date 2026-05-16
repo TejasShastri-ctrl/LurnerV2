@@ -8,14 +8,16 @@ import { DatabaseZap, BarChart3, Trophy, LogOut } from 'lucide-react';
 const LurnerMark = () => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
     <div style={{
-      width: 30, height: 30, borderRadius: 8,
-      background: 'var(--accent)',
+      width: 35, height: 35, borderRadius: 8,
+      background: '',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexShrink: 0,
+      border: "1px dashed var(--accent)"
     }}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
       </svg>
+      <img src="src/assets/logo2.png" alt="logo" />
     </div>
     <span style={{
       fontWeight: 700, fontSize: '1.05rem', color: 'white',
@@ -39,7 +41,7 @@ const navLinkStyle = ({ isActive }) => ({
 
 export default function AppLayout({ children }) {
   const { user, logout, isAuthenticated } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const SIDEBAR_W = 220;
   const FRIENDS_W = 288;
