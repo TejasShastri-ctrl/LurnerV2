@@ -278,3 +278,17 @@ export const fetchAiReport = async (token, days = 7) => {
     }
     return await res.json();
 }
+
+// Contests
+export const fetchContests = async (token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.error("Failed to fetch contests:", e);
+        return [];
+    }
+}

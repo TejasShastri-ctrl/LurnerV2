@@ -88,25 +88,10 @@ export default function AppLayout({ children }) {
             Insights
           </NavLink>
 
-          {/* Disabled link */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '9px 12px', borderRadius: 8,
-            fontSize: '0.855rem', fontWeight: 500, marginBottom: 2,
-            color: 'rgba(201,209,224,0.3)',
-            cursor: 'default',
-          }}>
+          <NavLink to="/contests" style={navLinkStyle}>
             <Trophy size={16} strokeWidth={1.8} />
             Contests
-            <span style={{
-              marginLeft: 'auto', fontSize: '0.58rem', fontWeight: 600,
-              background: 'rgba(255,255,255,0.08)',
-              color: 'rgba(201,209,224,0.4)',
-              padding: '2px 7px', borderRadius: 4,
-            }}>
-              Soon
-            </span>
-          </div>
+          </NavLink>
         </nav>
 
         {/* User Footer */}
