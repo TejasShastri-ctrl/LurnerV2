@@ -34,7 +34,6 @@ model Question {
   createdAt    DateTime @default(now())
   submissions  Submission[]
   activityLogs ActivityLog[]
-  contestQuestions ContestQuestion[]
   progress     UserQuestionProgress[]
 }
 
@@ -52,6 +51,10 @@ model Submission {
   diagnostic      Json?
   sessionId       String?        // Grouping for AI analysis
   createdAt       DateTime       @default(now())
+  
+  // Contest tracking
+  // contestId       Int?
+  // contest         Contest?       @relation(fields: [contestId], references: [id])
 }
 
 model ActivityLog {
@@ -100,10 +103,11 @@ model User {
   receivedInvites FriendInvite[] @relation("receivedInvites")
 
   // Contests
-  contestsCreated      Contest[]
   contestParticipations ContestParticipant[]
   progress             UserQuestionProgress[]
   aiReports            AiReport[]
+
+  contestSubmissions ContestSubmission[]
 }
 
 model FriendInvite {
@@ -127,28 +131,41 @@ model Follows {
   @@id([followerId, followingId])
 }
 
+
+
+
+
+// CONTESTS:
+
+
 model Contest {
   id           Int      @id @default(autoincrement())
   title        String
   description  String?
   startTime    DateTime
   endTime      DateTime
-  creatorId    Int
-  creator      User     @relation(fields: [creatorId], references: [id])
   
   questions    ContestQuestion[]
   participants ContestParticipant[]
+  contestSubmissions ContestSubmission[]
   createdAt    DateTime @default(now())
 }
 
 model ContestQuestion {
-  contestId  Int
-  questionId Int
-  order      Int      @default(0)
-  contest    Contest  @relation(fields: [contestId], references: [id])
-  question   Question @relation(fields: [questionId], references: [id])
+  id             Int      @id @default(autoincrement())
+  contestId      Int
+  order          Int      @default(0)
+  contest        Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  
+  title          String
+  description    String   @db.Text
+  difficulty     Difficulty
+  initSql        String   @db.Text
+  dbTableName    String?
+  solutionSql    String?  @db.Text
+  expectedOutput Json
 
-  @@id([contestId, questionId])
+  contestSubmissions ContestSubmission[]
 }
 
 model ContestParticipant {
@@ -161,6 +178,36 @@ model ContestParticipant {
 
   @@id([userId, contestId])
 }
+
+model ContestSubmission {
+  id Int @id @default(autoincrement())
+  userId Int
+  user User @relation(fields: [userId], references: [id])
+
+  contestId Int
+  contest Contest @relation(fields:[contestId], references:[id])
+
+  contestQuestionId Int
+  contestQuestion ContestQuestion @relation(fields:[contestQuestionId], references:[id], onDelete: Cascade)
+
+  code String @db.Text
+  status String
+  executionTimeMs Int?
+  errorMessage String? @db.Text
+  output Json?
+
+  createdAt DateTime @default(now())
+}
+
+
+
+
+
+
+
+
+
+// INTELLGENCE:
 
 model AiReport {
   id            Int      @id @default(autoincrement())
