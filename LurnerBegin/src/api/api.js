@@ -292,3 +292,78 @@ export const fetchContests = async (token) => {
         return [];
     }
 }
+
+export const fetchContestById = async (id, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Failed to fetch contest details");
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to fetch contest details:", e);
+        return null;
+    }
+}
+
+export const joinContest = async (id, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests/${id}/join`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Failed to join contest");
+        }
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to join contest:", e);
+        throw e;
+    }
+}
+
+export const submitContestSolution = async (contestId, contestQuestionId, sql, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests/${contestId}/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ sql, contestQuestionId })
+        });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Failed to submit solution");
+        }
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to submit solution:", e);
+        throw e;
+    }
+}
+
+export const createContest = async (contestData, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(contestData)
+        });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Failed to create contest");
+        }
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to create contest:", e);
+        throw e;
+    }
+}

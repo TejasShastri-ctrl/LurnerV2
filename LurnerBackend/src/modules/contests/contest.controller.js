@@ -135,3 +135,29 @@ export const contestSubmitHandler = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+export const contestExecuteHandler = async (req, res) => {
+    const { sql, contestQuestionId } = req.body;
+
+    try {
+        const contestQuestion = await contestService.getContestQuestionById(contestQuestionId);
+        if (!contestQuestion) return res.status(404).json({ error: "Contest Question not found" });
+
+        let results;
+        let executionTimeMs = 0;
+        let errorMessage = null;
+
+        try {
+            const execution = await executeSql(contestQuestion.initSql, sql);
+            results = execution.data;
+            executionTimeMs = execution.executionTimeMs;
+        } catch (e) {
+            errorMessage = e.error || e.message;
+            executionTimeMs = e.executionTimeMs || 0;
+        }
+
+        res.json({ results, executionTimeMs, errorMessage });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

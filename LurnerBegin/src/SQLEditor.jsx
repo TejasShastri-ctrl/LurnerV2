@@ -1,51 +1,30 @@
-import { useParams, useNavigate, replace } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import Editor from "@monaco-editor/react";
 import { fetchQueById, submitSolution, executeSql, fetchHistory } from "./api/api";
 import { useAuth } from "./context/AuthContext";
-
 import { ToastContainer, toast } from 'react-toastify';
 
-/* ── Toast component ── */
+/* ── Custom toast component (stacked, bottom-right) ── */
 function Toast({ toasts, dismiss }) {
   return (
-    <div style={{
-      position: 'fixed', bottom: 20, right: 20, zIndex: 9999,
-      display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none',
-    }}>
+    <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none">
       {toasts.map(t => {
-        const colors = {
-          success: { bg: 'var(--success-bg)', border: 'var(--success-border)', accent: 'var(--success)', text: '#065f46', sub: '#047857' },
-          error: { bg: 'var(--danger-bg)', border: 'var(--danger-border)', accent: 'var(--danger)', text: '#991b1b', sub: '#b91c1c' },
-          info: { bg: 'var(--info-bg)', border: 'var(--info-border)', accent: 'var(--info)', text: '#0c4a6e', sub: '#0369a1' },
+        const styles = {
+          success: { bg: 'bg-[var(--color-success-bg)]', border: 'border-[var(--color-success-border)]', accent: 'border-l-[var(--color-success)]',   title: 'text-[#065f46]', body: 'text-[#047857]' },
+          error:   { bg: 'bg-[var(--color-danger-bg)]',  border: 'border-[var(--color-danger-border)]',  accent: 'border-l-[var(--color-danger)]',     title: 'text-[#991b1b]', body: 'text-[#b91c1c]' },
+          info:    { bg: 'bg-[var(--color-info-bg)]',    border: 'border-[var(--color-info-border)]',    accent: 'border-l-[var(--color-info)]',       title: 'text-[#0c4a6e]', body: 'text-[#0369a1]' },
         };
-        const c = colors[t.type] || colors.info;
+        const s = styles[t.type] || styles.info;
         return (
           <div
             key={t.id}
             onClick={() => dismiss(t.id)}
-            style={{
-              display: 'flex', alignItems: 'flex-start', gap: 10,
-              padding: '12px 16px',
-              background: c.bg,
-              border: `1px solid ${c.border}`,
-              borderLeft: `3px solid ${c.accent}`,
-              borderRadius: 'var(--radius-md)',
-              boxShadow: 'var(--shadow-md)',
-              minWidth: 270, maxWidth: 340,
-              pointerEvents: 'all', cursor: 'pointer',
-              animation: 'toastIn 0.28s ease forwards',
-            }}
+            className={`flex items-start gap-2.5 px-4 py-3 ${s.bg} border ${s.border} border-l-[3px] ${s.accent} rounded-[var(--radius-md)] shadow-[0_4px_12px_rgba(17,24,39,0.08)] min-w-[270px] max-w-[340px] pointer-events-auto cursor-pointer toast-in`}
           >
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.84rem', color: c.text }}>
-                {t.title}
-              </div>
-              {t.body && (
-                <div style={{ fontSize: '0.76rem', marginTop: 2, color: c.sub }}>
-                  {t.body}
-                </div>
-              )}
+            <div className="flex-1">
+              <div className={`font-bold text-[0.84rem] ${s.title}`}>{t.title}</div>
+              {t.body && <div className={`text-[0.76rem] mt-0.5 ${s.body}`}>{t.body}</div>}
             </div>
           </div>
         );
@@ -72,16 +51,16 @@ export function SqlExecutionWindow() {
   const { token, isAuthenticated } = useAuth();
   const { toasts, add, dismiss } = useToast();
 
-  const [question, setQuestion] = useState(null);
-  const [query, setQuery] = useState('SELECT * FROM employees');
-  const [results, setResults] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [errorMessage, setErrorMessage] = useState(null);
-  const [executing, setExecuting] = useState(false);
+  const [question, setQuestion]             = useState(null);
+  const [query, setQuery]                   = useState('SELECT * FROM employees');
+  const [results, setResults]               = useState([]);
+  const [history, setHistory]               = useState([]);
+  const [errorMessage, setErrorMessage]     = useState(null);
+  const [executing, setExecuting]           = useState(false);
   const [executionTimeMs, setExecutionTimeMs] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('result');
-  const [diagnostic, setDiagnostic] = useState(null);
+  const [loading, setLoading]               = useState(true);
+  const [activeTab, setActiveTab]           = useState('result');
+  const [diagnostic, setDiagnostic]         = useState(null);
   const [sessionId] = useState(() => crypto.randomUUID?.() || Math.random().toString(36).substring(2, 15));
 
   const loadHistory = useCallback(async () => {
@@ -107,34 +86,22 @@ export function SqlExecutionWindow() {
     try {
       const data = await executeSql(query, id, token, sessionId);
       setExecutionTimeMs(Math.round(performance.now() - start));
-      console.log('FETCHED DATA : ', data);
       setResults([]);
       if (data.errorMessage) {
         setErrorMessage(data.errorMessage);
         add('error', 'Query Error', data.errorMessage.substring(0, 80));
       } else {
         setResults(Array.isArray(data.results) ? data.results : []);
-        console.log('returned result : ', data.results);
-        console.log('expected result : ', question.expectedOutput);
         setActiveTab('result');
-        // loadHistory();
       }
     } catch (e) {
-      // custom throw btw, 429 counts as a success so catching it regularly does not work
-      // check api.js
-      if(e.status === 429) {
-        // alert("You are running the code too frequently. Please wait for 2 seconds before another run");
+      if (e.status === 429) {
         toast.warn("You are running the query too frequently. Please wait 2 seconds before trying");
         return;
       }
-
       setErrorMessage('Network error: Could not connect to the database engine.');
       add('error', 'Network Error', 'Could not connect to the database engine.');
-      console.log(e);
-    } finally {
-      loadHistory()
-      setExecuting(false);;
-    }
+    } finally { loadHistory(); setExecuting(false); }
   };
 
   const handleSubmit = async () => {
@@ -142,7 +109,6 @@ export function SqlExecutionWindow() {
     try {
       const data = await submitSolution(query, id, token, sessionId);
       setDiagnostic(data.diagnostic);
-
       if (data.isCorrect) {
         add('success', 'Correct!', "You've solved this challenge.");
       } else {
@@ -152,10 +118,7 @@ export function SqlExecutionWindow() {
       }
       loadHistory();
     } catch (e) {
-      if (e.status === 429) {
-        toast.warn("You are submitting too frequently. Please wait 2 seconds before trying");
-        return;
-      }
+      if (e.status === 429) { toast.warn("You are submitting too frequently. Please wait 2 seconds before trying"); return; }
       add('error', 'Submit failed', 'Please try again.');
     }
   };
@@ -167,14 +130,10 @@ export function SqlExecutionWindow() {
 
   /* ── Loading screen ── */
   if (loading || !question) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          width: 32, height: 32, border: '2.5px solid var(--border)',
-          borderTopColor: 'var(--accent)', borderRadius: '50%',
-          animation: 'spin 0.75s linear infinite', margin: '0 auto 12px',
-        }} />
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Initialising sandbox…</p>
+    <div className="h-screen flex items-center justify-center bg-[var(--color-bg-app)]">
+      <div className="text-center">
+        <div className="w-8 h-8 border-[2.5px] border-[var(--color-border)] border-t-[var(--color-accent)] rounded-full animate-spin mx-auto mb-3 spin-loader" />
+        <p className="text-[var(--color-text-muted)] text-[0.85rem]">Initialising sandbox…</p>
       </div>
     </div>
   );
@@ -183,28 +142,15 @@ export function SqlExecutionWindow() {
     <>
       <Toast toasts={toasts} dismiss={dismiss} />
 
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <ToastContainer style={{ width: '250px'}} toastStyle={{ minHeight: "120px" }} theme="dark" position="top-right" autoClose={3000} />
+      <div className="flex flex-col h-screen overflow-hidden">
+        <ToastContainer style={{ width: '250px' }} toastStyle={{ minHeight: '120px' }} theme="dark" position="top-right" autoClose={3000} />
 
         {/* ── Toolbar ── */}
-        <div style={{
-          height: 50, background: 'var(--bg-content)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', padding: '0 16px',
-          flexShrink: 0,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="h-[50px] bg-[var(--color-bg-content)] border-b border-[var(--color-border)] flex items-center justify-between px-4 shrink-0">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
-                gap: 5, fontSize: '0.82rem', fontWeight: 500, padding: '4px 0',
-                transition: 'color 0.15s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+              className="bg-transparent border-none cursor-pointer text-[var(--color-text-muted)] flex items-center gap-[5px] text-[0.82rem] font-medium py-1 transition-colors duration-150 hover:text-[var(--color-text-primary)]"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="15 18 9 12 15 6" />
@@ -212,35 +158,29 @@ export function SqlExecutionWindow() {
               Questions
             </button>
 
-            <div style={{ width: 1, height: 18, background: 'var(--border)' }} />
+            <div className="w-px h-[18px] bg-[var(--color-border)]" />
 
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <span className="text-[0.875rem] font-semibold text-[var(--color-text-primary)]">
               {question.title}
             </span>
 
-            <span style={{
-              fontSize: '0.68rem', fontWeight: 600, padding: '2px 7px', borderRadius: 4,
-              background: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border)',
-              fontFamily: 'var(--font-mono)',
-            }}>
+            <span className="text-[0.68rem] font-semibold px-[7px] py-[2px] rounded-[4px] bg-[var(--color-bg-app)] text-[var(--color-text-muted)] border border-[var(--color-border)] font-mono">
               #{id}
             </span>
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex gap-2">
             <button
               onClick={handleExecute}
               disabled={executing}
-              className="btn btn-ghost"
-              style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-transparent text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-[var(--radius-sm)] text-[0.82rem] font-semibold cursor-pointer transition-all duration-150 hover:bg-[var(--color-bg-subtle)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] disabled:opacity-45 disabled:cursor-not-allowed"
             >
               {executing ? 'Running…' : 'Run Query'}
             </button>
             <button
               onClick={handleSubmit}
               disabled={executing}
-              className="btn btn-primary"
-              style={{ padding: '6px 18px', fontSize: '0.82rem' }}
+              className="inline-flex items-center justify-center gap-1.5 px-[18px] py-1.5 bg-[var(--color-accent)] text-white border-none rounded-[var(--radius-sm)] text-[0.82rem] font-semibold cursor-pointer transition-all duration-150 hover:bg-[var(--color-accent-hover)] disabled:opacity-45 disabled:cursor-not-allowed"
             >
               Submit
             </button>
@@ -248,52 +188,31 @@ export function SqlExecutionWindow() {
         </div>
 
         {/* ── Content panes ── */}
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div className="flex-1 flex overflow-hidden">
 
           {/* Left: Problem brief */}
-          <div style={{
-            width: "40%", flexShrink: 0,
-            borderRight: '1px solid var(--border)',
-            display: 'flex', flexDirection: 'column',
-            background: 'var(--bg-content)',
-          }}>
-            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-              <h2 style={{
-                fontSize: '0.9rem', fontWeight: 700,
-                color: 'var(--text-primary)', marginBottom: 10,
-              }}>
-                Description
-              </h2>
-              <div style={{ fontSize: '0.875rem', lineHeight: 1.65, color: 'var(--text-secondary)' }}>
+          <div className="w-[40%] shrink-0 border-r border-[var(--color-border)] flex flex-col bg-[var(--color-bg-content)]">
+            <div className="p-5 overflow-y-auto flex-1">
+              <h2 className="text-[0.9rem] font-bold text-[var(--color-text-primary)] mb-2.5">Description</h2>
+              <div className="text-[0.875rem] leading-[1.65] text-[var(--color-text-secondary)]">
                 {question.description}
               </div>
 
               {/* Schema preview */}
               {question.schemaSample && (
-                <div style={{ marginTop: 28 }}>
-                  <h3 style={{
-                    fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)',
-                    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
-                  }}>
+                <div className="mt-7">
+                  <h3 className="text-[0.7rem] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.06em] mb-2.5">
                     Table Preview ·{' '}
-                    <span style={{ color: 'var(--accent)', textTransform: 'none' }}>
-                      {question.dbTableName}
-                    </span>
+                    <span className="text-[var(--color-accent)] normal-case">{question.dbTableName}</span>
                   </h3>
-                  <div style={{
-                    border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                    overflow: 'hidden', background: 'var(--bg-subtle)', overflowX: 'auto',
-                  }}>
+                  <div className="border border-[var(--color-border)] rounded-[var(--radius-sm)] overflow-hidden bg-[var(--color-bg-subtle)] overflow-x-auto">
                     <DataGrid data={question.schemaSample} isMini />
                   </div>
                 </div>
               )}
 
-              <div style={{ marginTop: 24 }}>
-                <h3 style={{
-                  fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)',
-                  textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
-                }}>
+              <div className="mt-6">
+                <h3 className="text-[0.7rem] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.06em] mb-2">
                   Difficulty
                 </h3>
                 <DifficultyBadge level={question.difficulty} />
@@ -302,17 +221,12 @@ export function SqlExecutionWindow() {
           </div>
 
           {/* Right: Editor + Results */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-app)', overflow: 'hidden' }}>
+          <div className="flex-1 flex flex-col bg-[var(--color-bg-app)] overflow-hidden">
 
             {/* Editor */}
-            <div style={{ flex: 1, position: 'relative', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ position: 'absolute', top: 10, right: 12, zIndex: 10 }}>
-                <span style={{
-                  fontSize: '0.62rem', fontWeight: 700,
-                  color: 'var(--text-muted)', background: 'rgba(255,255,255,0.85)',
-                  padding: '3px 7px', borderRadius: 4, border: '1px solid var(--border)',
-                  letterSpacing: '0.05em', textTransform: 'uppercase',
-                }}>
+            <div className="flex-1 relative border-b border-[var(--color-border)]">
+              <div className="absolute top-2.5 right-3 z-10">
+                <span className="text-[0.62rem] font-bold text-[var(--color-text-muted)] bg-white/85 px-[7px] py-[3px] rounded-[4px] border border-[var(--color-border)] tracking-[0.05em] uppercase">
                   SQL
                 </span>
               </div>
@@ -335,52 +249,44 @@ export function SqlExecutionWindow() {
             </div>
 
             {/* Results panel */}
-            <div style={{ height: '38%', display: 'flex', flexDirection: 'column', background: 'var(--bg-content)' }}>
+            <div className="h-[38%] flex flex-col bg-[var(--color-bg-content)]">
 
               {/* Tab bar */}
-              <div style={{
-                height: 38, background: 'var(--bg-subtle)',
-                borderBottom: '1px solid var(--border)',
-                display: 'flex', alignItems: 'center', padding: '0 12px', gap: 2,
-                flexShrink: 0,
-              }}>
-                <TabButton active={activeTab === 'result'} onClick={() => setActiveTab('result')}>Output</TabButton>
+              <div className="h-[38px] bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)] flex items-center px-3 gap-0.5 shrink-0">
+                <TabButton active={activeTab === 'result'}   onClick={() => setActiveTab('result')}>Output</TabButton>
                 <TabButton active={activeTab === 'expected'} onClick={() => setActiveTab('expected')}>Expected</TabButton>
-                <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')}>
+                <TabButton active={activeTab === 'history'}  onClick={() => setActiveTab('history')}>
                   History {history.length > 0 && `(${history.length})`}
                 </TabButton>
                 <TabButton active={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')}>
                   Analysis {diagnostic?.mismatches?.length > 0 && `(${diagnostic.mismatches.length})`}
                 </TabButton>
-                <div style={{ flex: 1 }} />
+                <div className="flex-1" />
                 {results.length > 0 && activeTab === 'result' && (
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                  <span className="text-[0.7rem] text-[var(--color-text-muted)] font-medium">
                     {results.length} row{results.length !== 1 ? 's' : ''}
                   </span>
                 )}
                 {executionTimeMs > 0 && activeTab === 'result' && (
-                  <span style={{
-                    fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500,
-                    marginLeft: 10, fontFamily: 'var(--font-mono)',
-                  }}>
+                  <span className="text-[0.68rem] text-[var(--color-text-muted)] font-medium ml-2.5 font-mono">
                     {executionTimeMs}ms
                   </span>
                 )}
               </div>
 
               {/* Tab body */}
-              <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-                {activeTab === 'result' && <DataGrid data={results} error={errorMessage} />}
+              <div className="flex-1 overflow-auto relative">
+                {activeTab === 'result'   && <DataGrid data={results} error={errorMessage} />}
                 {activeTab === 'expected' && <DataGrid data={question.expectedOutput} />}
                 {activeTab === 'analysis' && <DiagnosticReport data={diagnostic} />}
-                {activeTab === 'history' && (
-                  <div style={{ padding: '14px' }}>
+                {activeTab === 'history'  && (
+                  <div className="p-3.5">
                     {history.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                      <div className="text-center py-8 text-[var(--color-text-muted)] text-[0.84rem]">
                         No submissions yet.
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div className="flex flex-col gap-2">
                         {history.map(h => (
                           <HistoryRow key={h.id} h={h} onRestore={restoreFromHistory} />
                         ))}
@@ -391,19 +297,11 @@ export function SqlExecutionWindow() {
               </div>
 
               {/* Status bar */}
-              <div style={{
-                height: 22, background: 'var(--bg-subtle)',
-                borderTop: '1px solid var(--border)',
-                display: 'flex', alignItems: 'center', padding: '0 12px',
-                fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)',
-                letterSpacing: '0.04em', gap: 12, flexShrink: 0,
-              }}>
-                <span style={{ color: executing ? 'var(--accent)' : 'var(--success)' }}>
+              <div className="h-[22px] bg-[var(--color-bg-subtle)] border-t border-[var(--color-border)] flex items-center px-3 text-[0.65rem] font-semibold text-[var(--color-text-muted)] tracking-[0.04em] gap-3 shrink-0">
+                <span className={executing ? 'text-[var(--color-accent)]' : 'text-[var(--color-success)]'}>
                   {executing ? '● RUNNING' : '● READY'}
                 </span>
-                {executionTimeMs > 0 && !executing && (
-                  <span>LAST: {executionTimeMs}ms</span>
-                )}
+                {executionTimeMs > 0 && !executing && <span>LAST: {executionTimeMs}ms</span>}
               </div>
             </div>
           </div>
@@ -415,49 +313,22 @@ export function SqlExecutionWindow() {
 
 /* ── History row ── */
 function HistoryRow({ h, onRestore }) {
-  const statusColors = {
-    SUCCESS: 'var(--success)',
-    FAIL: 'var(--warning)',
-    ERROR: 'var(--danger)',
-  };
+  const dotColor = { SUCCESS: 'bg-[var(--color-success)]', FAIL: 'bg-[var(--color-warning)]', ERROR: 'bg-[var(--color-danger)]' };
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 14,
-      padding: '10px 14px',
-      background: 'var(--bg-subtle)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-sm)',
-    }}>
-      <div style={{
-        width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-        background: statusColors[h.status] || 'var(--text-muted)',
-      }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-          <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {h.status}
-          </span>
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-            {new Date(h.createdAt).toLocaleString()}
-          </span>
+    <div className="flex items-center gap-3.5 px-3.5 py-2.5 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-[var(--radius-sm)]">
+      <div className={`w-[7px] h-[7px] rounded-full shrink-0 ${dotColor[h.status] || 'bg-[var(--color-text-muted)]'}`} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-[3px]">
+          <span className="text-[0.74rem] font-bold text-[var(--color-text-primary)]">{h.status}</span>
+          <span className="text-[0.68rem] text-[var(--color-text-muted)]">{new Date(h.createdAt).toLocaleString()}</span>
         </div>
-        <div style={{
-          fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380,
-        }}>
+        <div className="text-[0.72rem] font-mono text-[var(--color-text-secondary)] overflow-hidden text-ellipsis whitespace-nowrap max-w-[380px]">
           {h.code}
         </div>
       </div>
       <button
         onClick={() => onRestore(h.code)}
-        style={{
-          padding: '4px 11px', fontSize: '0.7rem', fontWeight: 600,
-          background: 'var(--bg-content)', border: '1px solid var(--border)',
-          borderRadius: 5, cursor: 'pointer', color: 'var(--text-secondary)',
-          transition: 'all 0.14s', flexShrink: 0,
-        }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+        className="px-[11px] py-1 text-[0.7rem] font-semibold bg-[var(--color-bg-content)] border border-[var(--color-border)] rounded-[5px] cursor-pointer text-[var(--color-text-secondary)] transition-all duration-[140ms] shrink-0 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
       >
         Restore
       </button>
@@ -467,10 +338,14 @@ function HistoryRow({ h, onRestore }) {
 
 /* ── Difficulty badge ── */
 function DifficultyBadge({ level }) {
-  const map = { EASY: 'badge-easy', MEDIUM: 'badge-medium', HARD: 'badge-hard' };
+  const cls = {
+    EASY:   'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success-border)]',
+    MEDIUM: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)] border-[var(--color-warning-border)]',
+    HARD:   'bg-[var(--color-danger-bg)]  text-[var(--color-danger)]  border-[var(--color-danger-border)]',
+  };
   const labels = { EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard' };
   return (
-    <span className={`badge ${map[level] || 'badge-easy'}`}>
+    <span className={`inline-flex items-center px-[9px] py-[2px] rounded-[4px] border text-[0.7rem] font-semibold tracking-[0.04em] ${cls[level] || cls.EASY}`}>
       {labels[level] || level}
     </span>
   );
@@ -479,14 +354,16 @@ function DifficultyBadge({ level }) {
 /* ── Tab button ── */
 function TabButton({ active, children, onClick }) {
   return (
-    <button onClick={onClick} style={{
-      padding: '5px 12px', border: 'none', cursor: 'pointer',
-      fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.12s',
-      background: 'transparent',
-      color: active ? 'var(--accent)' : 'var(--text-muted)',
-      borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-      borderRadius: 0,
-    }}>
+    <button
+      onClick={onClick}
+      className={[
+        'px-3 py-[5px] border-none cursor-pointer text-[0.75rem] font-semibold transition-all duration-[120ms] bg-transparent rounded-none',
+        'border-b-2',
+        active
+          ? 'text-[var(--color-accent)] border-b-[var(--color-accent)]'
+          : 'text-[var(--color-text-muted)] border-b-transparent',
+      ].join(' ')}
+    >
       {children}
     </button>
   );
@@ -496,13 +373,8 @@ function TabButton({ active, children, onClick }) {
 function DataGrid({ data, error, isMini = false }) {
   if (error) {
     return (
-      <div style={{
-        padding: 20, color: 'var(--danger)',
-        fontFamily: 'var(--font-mono)', fontSize: '0.82rem', whiteSpace: 'pre-wrap',
-        borderLeft: '3px solid var(--danger)', margin: 16,
-        background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)',
-      }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>Execution Error</div>
+      <div className="m-4 p-5 text-[var(--color-danger)] font-mono text-[0.82rem] whitespace-pre-wrap border-l-[3px] border-[var(--color-danger)] bg-[var(--color-danger-bg)] rounded-[var(--radius-sm)]">
+        <div className="font-bold mb-1.5">Execution Error</div>
         {error}
       </div>
     );
@@ -510,45 +382,40 @@ function DataGrid({ data, error, isMini = false }) {
 
   if (!data || data.length === 0) {
     return (
-      <div style={{
-        height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--text-muted)', fontSize: '0.82rem',
-      }}>
+      <div className="h-full flex items-center justify-center text-[var(--color-text-muted)] text-[0.82rem]">
         No results yet. Run a query to see output.
       </div>
     );
   }
 
-  const headers = Object.keys(data[0]);
-  const fontSize = isMini ? '0.7rem' : '0.8rem';
-  const cellPad = isMini ? '4px 8px' : '6px 12px';
+  const headers  = Object.keys(data[0]);
+  const fontSize = isMini ? 'text-[0.7rem]' : 'text-[0.8rem]';
+  const cellPad  = isMini ? 'px-2 py-1' : 'px-3 py-1.5';
 
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize }}>
+    <table className={`w-full border-collapse font-mono ${fontSize}`}>
       <thead>
-        <tr style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--bg-subtle)' }}>
-          <th style={gridThStyle({ width: isMini ? 28 : 36, borderRight: '1px solid var(--border)', padding: cellPad })}>
+        <tr className="sticky top-0 z-[5] bg-[var(--color-bg-subtle)]">
+          <th className={`${cellPad} text-left text-[0.68rem] font-bold text-[var(--color-text-secondary)] uppercase tracking-[0.04em] border-b border-[var(--color-border)] border-r border-[var(--color-border)] whitespace-nowrap ${isMini ? 'w-7' : 'w-9'}`}>
             #
           </th>
           {headers.map(h => (
-            <th key={h} style={gridThStyle({ padding: cellPad })}>{h}</th>
+            <th key={h} className={`${cellPad} text-left text-[0.68rem] font-bold text-[var(--color-text-secondary)] uppercase tracking-[0.04em] border-b border-[var(--color-border)] whitespace-nowrap`}>
+              {h}
+            </th>
           ))}
         </tr>
       </thead>
       <tbody>
         {data.map((row, i) => (
-          <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'var(--bg-content)' : 'var(--bg-subtle)' }}>
-            <td style={{
-              padding: cellPad, textAlign: 'center',
-              color: 'var(--text-muted)', background: 'var(--bg-subtle)',
-              borderRight: '1px solid var(--border)',
-            }}>
+          <tr key={i} className={`border-b border-[var(--color-border)] ${i % 2 === 0 ? 'bg-[var(--color-bg-content)]' : 'bg-[var(--color-bg-subtle)]'}`}>
+            <td className={`${cellPad} text-center text-[var(--color-text-muted)] bg-[var(--color-bg-subtle)] border-r border-[var(--color-border)]`}>
               {i + 1}
             </td>
             {headers.map(h => (
-              <td key={h} style={{ padding: cellPad, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              <td key={h} className={`${cellPad} text-[var(--color-text-primary)] whitespace-nowrap`}>
                 {row[h] === null
-                  ? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>NULL</span>
+                  ? <span className="text-[var(--color-text-muted)] italic">NULL</span>
                   : String(row[h])
                 }
               </td>
@@ -560,26 +427,11 @@ function DataGrid({ data, error, isMini = false }) {
   );
 }
 
-function gridThStyle(extra = {}) {
-  return {
-    padding: '7px 12px',
-    textAlign: 'left',
-    fontSize: '0.68rem',
-    fontWeight: 700,
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    borderBottom: '1px solid var(--border)',
-    whiteSpace: 'nowrap',
-    ...extra,
-  };
-}
-
 /* ── Diagnostic Report ── */
 function DiagnosticReport({ data }) {
   if (!data) {
     return (
-      <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+      <div className="text-center py-8 text-[var(--color-text-muted)] text-[0.84rem]">
         No analysis data available. Submit a solution to see structural feedback.
       </div>
     );
@@ -587,7 +439,7 @@ function DiagnosticReport({ data }) {
 
   if (data.error) {
     return (
-      <div style={{ padding: 20, color: 'var(--danger)', fontSize: '0.82rem' }}>
+      <div className="p-5 text-[var(--color-danger)] text-[0.82rem]">
         <strong>Analysis Error:</strong> {data.error}
       </div>
     );
@@ -596,8 +448,8 @@ function DiagnosticReport({ data }) {
   const mismatches = data.mismatches || [];
 
   return (
-    <div style={{ padding: '16px' }}>
-      <h3 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div className="p-4">
+      <h3 className="text-[0.75rem] font-bold text-[var(--color-text-primary)] mb-3.5 flex items-center gap-1.5">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
@@ -605,58 +457,54 @@ function DiagnosticReport({ data }) {
       </h3>
 
       {mismatches.length === 0 ? (
-        <div style={{
-          padding: '16px', background: 'var(--success-bg)', border: '1px solid var(--success-border)',
-          borderRadius: 8, color: 'var(--success)', fontSize: '0.84rem', display: 'flex', gap: 10
-        }}>
+        <div className="p-4 bg-[var(--color-success-bg)] border border-[var(--color-success-border)] rounded-lg text-[var(--color-success)] text-[0.84rem] flex gap-2.5">
           <span>✅</span>
           <div>
-            <div style={{ fontWeight: 700 }}>Structure matches perfectly!</div>
-            <div style={{ fontSize: '0.78rem', opacity: 0.8, marginTop: 2 }}>The structural skeleton of your query matches the solution. If your output is still wrong, check your data values or join conditions.</div>
+            <div className="font-bold">Structure matches perfectly!</div>
+            <div className="text-[0.78rem] opacity-80 mt-0.5">The structural skeleton of your query matches the solution. If your output is still wrong, check your data values or join conditions.</div>
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {mismatches.map((m, i) => (
-            <div key={i} style={{
-              padding: '12px 14px',
-              background: m.severity === 'HIGH' ? 'var(--danger-bg)' : m.severity === 'MEDIUM' ? 'var(--warning-bg)' : 'var(--info-bg)',
-              border: `1px solid ${m.severity === 'HIGH' ? 'var(--danger-border)' : m.severity === 'MEDIUM' ? 'var(--warning-border)' : 'var(--info-border)'}`,
-              borderRadius: 8,
-              display: 'flex', gap: 12
-            }}>
-              <span style={{ fontSize: '1rem' }}>
-                {m.severity === 'HIGH' ? '🚨' : m.severity === 'MEDIUM' ? '⚠️' : '💡'}
-              </span>
-              <div>
-                <div style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: 2 }}>
-                  {m.type.replace(/_/g, ' ')} • {m.severity}
-                </div>
-                <div style={{ fontSize: '0.84rem', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.4 }}>
-                  {m.message}
+        <div className="flex flex-col gap-2.5">
+          {mismatches.map((m, i) => {
+            const sev = m.severity;
+            const bg   = sev === 'HIGH' ? 'bg-[var(--color-danger-bg)]'  : sev === 'MEDIUM' ? 'bg-[var(--color-warning-bg)]'  : 'bg-[var(--color-info-bg)]';
+            const bdr  = sev === 'HIGH' ? 'border-[var(--color-danger-border)]' : sev === 'MEDIUM' ? 'border-[var(--color-warning-border)]' : 'border-[var(--color-info-border)]';
+            return (
+              <div key={i} className={`px-3.5 py-3 ${bg} border ${bdr} rounded-lg flex gap-3`}>
+                <span className="text-[1rem]">
+                  {sev === 'HIGH' ? '🚨' : sev === 'MEDIUM' ? '⚠️' : '💡'}
+                </span>
+                <div>
+                  <div className="text-[0.65rem] font-extrabold uppercase tracking-[0.04em] text-[var(--color-text-muted)] mb-0.5">
+                    {m.type.replace(/_/g, ' ')} • {sev}
+                  </div>
+                  <div className="text-[0.84rem] text-[var(--color-text-primary)] font-medium leading-[1.4]">
+                    {m.message}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Detail breakdown (Debug/Advanced) */}
-      <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+      {/* Detail breakdown */}
+      <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
         <details>
-          <summary style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer', outline: 'none' }}>
+          <summary className="text-[0.68rem] font-bold text-[var(--color-text-muted)] cursor-pointer outline-none">
             View Structural Comparison (AST Skeleton)
           </summary>
-          <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: 4 }}>YOUR QUERY</div>
-              <pre style={{ fontSize: '0.7rem', background: 'var(--bg-subtle)', padding: 10, borderRadius: 6, overflow: 'auto' }}>
+          <div className="flex gap-4 mt-3">
+            <div className="flex-1">
+              <div className="text-[0.62rem] font-extrabold text-[var(--color-text-muted)] mb-1">YOUR QUERY</div>
+              <pre className="text-[0.7rem] bg-[var(--color-bg-subtle)] p-2.5 rounded-[6px] overflow-auto">
                 {JSON.stringify(data.userSkeleton, null, 2)}
               </pre>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: 4 }}>SOLUTION</div>
-              <pre style={{ fontSize: '0.7rem', background: 'var(--bg-subtle)', padding: 10, borderRadius: 6, overflow: 'auto' }}>
+            <div className="flex-1">
+              <div className="text-[0.62rem] font-extrabold text-[var(--color-text-muted)] mb-1">SOLUTION</div>
+              <pre className="text-[0.7rem] bg-[var(--color-bg-subtle)] p-2.5 rounded-[6px] overflow-auto">
                 {JSON.stringify(data.solutionSkeleton, null, 2)}
               </pre>
             </div>

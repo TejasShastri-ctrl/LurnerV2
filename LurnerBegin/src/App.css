@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   /* Set your custom width */
   --toastify-toast-width: 450px; 
