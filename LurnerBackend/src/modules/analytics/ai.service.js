@@ -13,13 +13,13 @@ export const generateAiReport = async (userId, days) => {
     // 2. Fetch data (Submissions)
     const submissions = await prisma.submission.findMany({
         where: { userId, createdAt: { gte: since } },
-        include: { question: { select: { title: true, description: true, initSql: true, solutionSql: true } } },
+        include: { question: { select: { title: true, description: true, solutionSql: true, dataset: { select: { initSql: true } } } } },
         orderBy: { createdAt: 'asc' }
     });
 
     const activityLogs = await prisma.activityLog.findMany({
         where: { userId, createdAt: { gte: since } },
-        include: { question: { select: { title: true, description: true, initSql: true, solutionSql: true } } },
+        include: { question: { select: { title: true, description: true, solutionSql: true, dataset: { select: { initSql: true } } } } },
         orderBy: { createdAt: 'asc' }
     });
 
@@ -67,7 +67,7 @@ export const generateAiReport = async (userId, days) => {
         reportPayload.push({
             Question: title,
             Description: q.description,
-            Schema: q.initSql,
+            Schema: q.dataset?.initSql,
             Ideal_Solution: q.solutionSql,
             User_Attempts: prunedEvents
         });

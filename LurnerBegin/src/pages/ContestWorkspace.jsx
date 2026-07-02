@@ -43,6 +43,30 @@ function InfractionOverlay({ count, max, type, message, onResolve }) {
     );
 }
 
+function MiniTable({ data }) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        return <div className="text-gray-500 text-xs p-2">Empty Table</div>;
+    }
+    return (
+        <div className="overflow-x-auto max-h-56">
+            <table className="w-full text-left border-collapse text-[0.7rem]">
+                <thead>
+                    <tr className="border-b border-gray-850 text-gray-500">
+                        {Object.keys(data[0]).map(k => <th key={k} className="p-1.5 font-bold">{k}</th>)}
+                    </tr>
+                </thead>
+                <tbody>
+                    {data.map((row, idx) => (
+                        <tr key={idx} className="border-b border-gray-850/40 text-gray-400">
+                            {Object.values(row).map((v, i) => <td key={i} className="p-1.5 font-mono">{v === null ? 'NULL' : String(v)}</td>)}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 export default function ContestWorkspace() {
     const { contestId } = useParams();
     const navigate = useNavigate();
@@ -66,6 +90,21 @@ export default function ContestWorkspace() {
 
     // Timer state
     const [timeLeftMs, setTimeLeftMs] = useState(0);
+
+    const [activePreviewTable, setActivePreviewTable] = useState(null);
+
+    useEffect(() => {
+        if (activeQuestion && activeQuestion.allTables) {
+            const keys = Object.keys(activeQuestion.allTables);
+            if (keys.length > 0) {
+                if (activeQuestion.dbTableName && keys.includes(activeQuestion.dbTableName)) {
+                    setActivePreviewTable(activeQuestion.dbTableName);
+                } else {
+                    setActivePreviewTable(keys[0]);
+                }
+            }
+        }
+    }, [activeQuestionIdx, activeQuestion]);
 
     // Load Local Drafts Hook
     const { drafts, saveDraft, clearDrafts } = useLocalDraft(contestId, user?.id);
@@ -456,16 +495,44 @@ export default function ContestWorkspace() {
                                 <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{activeQuestion.description}</p>
                             </div>
 
-                            {/* Database table preview if available */}
-                            {activeQuestion.dbTableName && (
+                            {/* Database table preview / Dataset Schema Inspector */}
+                            {activeQuestion.allTables && Object.keys(activeQuestion.allTables).length > 0 ? (
                                 <div>
-                                    <h3 className="text-xs font-bold text-gray-400 mb-2.5 uppercase tracking-wide">
-                                        Active Table Preview · <span className="text-blue-400 font-mono lowercase">{activeQuestion.dbTableName}</span>
+                                    <h3 className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">
+                                        Database Schema Inspector
                                     </h3>
-                                    <div className="bg-[#14181f] border border-gray-800/80 rounded-lg p-3 text-[0.72rem] font-mono text-gray-400">
-                                        Use SQL queries to search and return correct outputs based on the schema mapping.
+                                    <div className="flex flex-wrap gap-1 mb-2 border-b border-gray-800 pb-1">
+                                        {Object.keys(activeQuestion.allTables).map(tableName => (
+                                            <button
+                                                key={tableName}
+                                                onClick={() => setActivePreviewTable(tableName)}
+                                                className={`px-2.5 py-1 text-xs font-semibold rounded-t cursor-pointer border-none bg-transparent ${
+                                                    activePreviewTable === tableName
+                                                        ? 'text-blue-500 border-b-2 border-blue-500 font-bold'
+                                                        : 'text-gray-500 hover:text-gray-300'
+                                                }`}
+                                            >
+                                                {tableName}
+                                            </button>
+                                        ))}
                                     </div>
+                                    {activePreviewTable && activeQuestion.allTables[activePreviewTable] && (
+                                        <div className="bg-[#14181f] border border-gray-800/80 rounded-lg p-3 overflow-x-auto">
+                                            <MiniTable data={activeQuestion.allTables[activePreviewTable]} />
+                                        </div>
+                                    )}
                                 </div>
+                            ) : (
+                                activeQuestion.dbTableName && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-400 mb-2.5 uppercase tracking-wide">
+                                            Active Table Preview · <span className="text-blue-400 font-mono lowercase">{activeQuestion.dbTableName}</span>
+                                        </h3>
+                                        <div className="bg-[#14181f] border border-gray-800/80 rounded-lg p-3 text-[0.72rem] font-mono text-gray-400">
+                                            Use SQL queries to search and return correct outputs based on the schema mapping.
+                                        </div>
+                                    </div>
+                                )
                             )}
                         </div>
                     ) : (

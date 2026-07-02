@@ -24,7 +24,48 @@ export const getContestHandler = async (req, res) => {
     try {
         const contest = await contestService.getContestById(req.params.id);
         if (!contest) return res.status(404).json({ error: "Contest not found" });
-        res.json(contest);
+
+        // Compile table samples and previews for each question in the contest
+        const questionsWithPreviews = [];
+        for (const q of contest.questions) {
+            let allTables = {};
+            let schemaSample = null;
+            if (q.dataset && q.dataset.initSql) {
+                try {
+                    const tablesResult = await executeSql(
+                        q.dataset.initSql, 
+                        "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+                    );
+                    if (tablesResult && tablesResult.data) {
+                        for (const row of tablesResult.data) {
+                            const tableName = row.name;
+                            try {
+                                const sample = await executeSql(q.dataset.initSql, `SELECT * FROM ${tableName} LIMIT 5`);
+                                allTables[tableName] = sample.data;
+                            } catch (err) {
+                                console.error(`Failed to generate sample for table ${tableName}:`, err);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to list tables for contest dataset:", e);
+                }
+                
+                if (q.dbTableName && allTables[q.dbTableName]) {
+                    schemaSample = allTables[q.dbTableName];
+                }
+            }
+            questionsWithPreviews.push({
+                ...q,
+                schemaSample,
+                allTables
+            });
+        }
+
+        res.json({
+            ...contest,
+            questions: questionsWithPreviews
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -80,7 +121,7 @@ export const contestSubmitHandler = async (req, res) => {
 
         try {
             // 3. Execute SQL
-            const execution = await executeSql(contestQuestion.initSql, sql);
+            const execution = await executeSql(contestQuestion.dataset?.initSql || "", sql);
             results = execution.data;
             executionTimeMs = execution.executionTimeMs;
 
@@ -148,7 +189,7 @@ export const contestExecuteHandler = async (req, res) => {
         let errorMessage = null;
 
         try {
-            const execution = await executeSql(contestQuestion.initSql, sql);
+            const execution = await executeSql(contestQuestion.dataset?.initSql || "", sql);
             results = execution.data;
             executionTimeMs = execution.executionTimeMs;
         } catch (e) {

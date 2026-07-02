@@ -37,7 +37,7 @@ export const submitHandler = async (req, res) => {
         let diagnostic = null;
 
         try {
-            const execution = await executeSql(question.initSql, sql);
+            const execution = await executeSql(question.dataset?.initSql || "", sql);
             results = execution.data;
             executionTimeMs = execution.executionTimeMs;
             

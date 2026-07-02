@@ -11,7 +11,32 @@ async function main() {
 
     const now = new Date();
 
-    // 1. ACTIVE CONTEST
+    // 1. Create Datasets for contests
+    const topEarnersDataset = await prisma.dataset.create({
+        data: {
+            name: "Top Earners Contest DB",
+            description: "Database representing employees and salaries for the weekend sprint.",
+            initSql: "CREATE TABLE employees (id INT, name TEXT, salary INT, dept_id INT); INSERT INTO employees VALUES (1, 'Alice', 100, 1), (2, 'Bob', 200, 1), (3, 'Charlie', 300, 1);"
+        }
+    });
+
+    const hierarchyDataset = await prisma.dataset.create({
+        data: {
+            name: "Hierarchy Contest DB",
+            description: "Database representing organization hierarchy for the Mahakumbh championship.",
+            initSql: "CREATE TABLE hierarchy (emp_id INT, manager_id INT);"
+        }
+    });
+
+    const usersDataset = await prisma.dataset.create({
+        data: {
+            name: "Basic Users Contest DB",
+            description: "Database containing users table for warmup practice.",
+            initSql: "CREATE TABLE users (id INT, name TEXT); INSERT INTO users VALUES (1, 'Admin');"
+        }
+    });
+
+    // 2. ACTIVE CONTEST
     await prisma.contest.create({
         data: {
             title: "Weekend SQL Sprint",
@@ -25,7 +50,7 @@ async function main() {
                         title: "Find Top Earners",
                         description: "Find the top 3 earners in each department using window functions.",
                         difficulty: "MEDIUM",
-                        initSql: "CREATE TABLE employees (id INT, name TEXT, salary INT, dept_id INT); INSERT INTO employees VALUES (1, 'Alice', 100, 1), (2, 'Bob', 200, 1), (3, 'Charlie', 300, 1);",
+                        datasetId: topEarnersDataset.id,
                         dbTableName: "employees",
                         solutionSql: "SELECT name FROM employees ORDER BY salary DESC LIMIT 3;",
                         expectedOutput: [{ name: "Charlie" }, { name: "Bob" }, { name: "Alice" }]
@@ -35,7 +60,7 @@ async function main() {
         }
     });
 
-    // 2. UPCOMING CONTEST
+    // 3. UPCOMING CONTEST
     await prisma.contest.create({
         data: {
             title: "Global Mahakumbh Championship",
@@ -49,7 +74,7 @@ async function main() {
                         title: "Recursive Employee Hierarchy",
                         description: "Use a recursive CTE to find the management chain for a specific employee.",
                         difficulty: "HARD",
-                        initSql: "CREATE TABLE hierarchy (emp_id INT, manager_id INT);",
+                        datasetId: hierarchyDataset.id,
                         dbTableName: "hierarchy",
                         solutionSql: "SELECT * FROM hierarchy;",
                         expectedOutput: []
@@ -59,7 +84,7 @@ async function main() {
         }
     });
 
-    // 3. PAST CONTEST
+    // 4. PAST CONTEST
     await prisma.contest.create({
         data: {
             title: "Beginner SQL Warmup",
@@ -73,7 +98,7 @@ async function main() {
                         title: "Select All Users",
                         description: "Return all records from the users table.",
                         difficulty: "EASY",
-                        initSql: "CREATE TABLE users (id INT, name TEXT); INSERT INTO users VALUES (1, 'Admin');",
+                        datasetId: usersDataset.id,
                         dbTableName: "users",
                         solutionSql: "SELECT * FROM users;",
                         expectedOutput: [{ id: 1, name: "Admin" }]

@@ -18,7 +18,7 @@ export const createContest = async (data) => {
                     title: q.title,
                     description: q.description,
                     difficulty: q.difficulty,
-                    initSql: q.initSql,
+                    datasetId: parseInt(q.datasetId),
                     dbTableName: q.dbTableName,
                     solutionSql: q.solutionSql,
                     expectedOutput: q.expectedOutput
@@ -58,7 +58,13 @@ export const getContestById = async (id) => {
                     description: true,
                     difficulty: true,
                     dbTableName: true,
-                    initSql: true, 
+                    dataset: {
+                        select: {
+                            id: true,
+                            name: true,
+                            initSql: true
+                        }
+                    },
                     expectedOutput: true
                     // EXPLICITLY OMIT solutionSql
                 },
@@ -131,7 +137,8 @@ export const isUserInContest = async (userId, contestId) => {
  */
 export const getContestQuestionById = async (id) => {
     return prisma.contestQuestion.findUnique({
-        where: { id: parseInt(id) }
+        where: { id: parseInt(id) },
+        include: { dataset: true }
     });
 };
 

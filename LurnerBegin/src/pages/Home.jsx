@@ -40,7 +40,7 @@ function FilterPill({ active, children, onClick }) {
       className={[
         'px-[13px] py-[5px] rounded-[6px] border-none cursor-pointer text-[0.78rem] font-semibold transition-all duration-[140ms]',
         active
-          ? 'bg-[var(--color-bg-content)] text-[var(--color-text-primary)] shadow-[0_1px_2px_rgba(17,24,39,0.05)]'
+          ? 'bg-[#111d13] text-[#ffffff] shadow-[0_1px_2px_rgba(17,24,39,0.05)]'
           : 'bg-transparent text-[var(--color-text-muted)]',
       ].join(' ')}
     >
@@ -117,7 +117,7 @@ export default function Home() {
             {difficulties.map(d => (
               <FilterPill key={d} active={filter === d} onClick={() => setFilter(d)}>
                 {d === 'ALL' ? 'All' : DIFFICULTY_META[d].label}
-                <span className="ml-[5px] opacity-55 font-medium">{counts[d]}</span>
+                <span className={`ml-[5px] opacity-55 font-medium}`}>{counts[d]}</span>
               </FilterPill>
             ))}
           </div>
@@ -160,7 +160,7 @@ export default function Home() {
               <th className={thClass} style={{ width: 44 }}>Status</th>
               <th className={thClass} style={{ width: 50 }}>#</th>
               <th className={`${thClass} text-left`}>Title</th>
-              <th className={thClass} style={{ width: 110 }}>Difficulty</th>
+              <th className={thClass} style={{ width: 110 }}>Difficul\ty</th>
               <th className={thClass} style={{ width: 80 }}></th>
             </tr>
           </thead>

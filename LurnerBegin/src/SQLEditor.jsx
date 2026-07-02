@@ -62,6 +62,21 @@ export function SqlExecutionWindow() {
   const [activeTab, setActiveTab]           = useState('result');
   const [diagnostic, setDiagnostic]         = useState(null);
   const [sessionId] = useState(() => crypto.randomUUID?.() || Math.random().toString(36).substring(2, 15));
+  
+  const [activePreviewTable, setActivePreviewTable] = useState(null);
+
+  useEffect(() => {
+    if (question && question.allTables) {
+      const keys = Object.keys(question.allTables);
+      if (keys.length > 0) {
+        if (question.dbTableName && keys.includes(question.dbTableName)) {
+          setActivePreviewTable(question.dbTableName);
+        } else {
+          setActivePreviewTable(keys[0]);
+        }
+      }
+    }
+  }, [question]);
 
   const loadHistory = useCallback(async () => {
     if (id && token) {
@@ -199,16 +214,45 @@ export function SqlExecutionWindow() {
               </div>
 
               {/* Schema preview */}
-              {question.schemaSample && (
+              {question.allTables && Object.keys(question.allTables).length > 0 ? (
                 <div className="mt-7">
-                  <h3 className="text-[0.7rem] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.06em] mb-2.5">
-                    Table Preview ·{' '}
-                    <span className="text-[var(--color-accent)] normal-case">{question.dbTableName}</span>
+                  <h3 className="text-[0.7rem] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.06em] mb-2">
+                    Schema Table Inspector
                   </h3>
-                  <div className="border border-[var(--color-border)] rounded-[var(--radius-sm)] overflow-hidden bg-[var(--color-bg-subtle)] overflow-x-auto">
-                    <DataGrid data={question.schemaSample} isMini />
+                  {/* Tabs for all tables in the dataset */}
+                  <div className="flex flex-wrap gap-1.5 mb-2.5 border-b border-[var(--color-border)] pb-1">
+                    {Object.keys(question.allTables).map(tableName => (
+                      <button
+                        key={tableName}
+                        onClick={() => setActivePreviewTable(tableName)}
+                        className={`px-2 py-1 text-xs font-semibold rounded-t cursor-pointer border-none bg-transparent ${
+                          activePreviewTable === tableName
+                            ? 'text-[var(--color-accent)] border-b-2 border-[var(--color-accent)] font-bold'
+                            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                        }`}
+                      >
+                        {tableName}
+                      </button>
+                    ))}
                   </div>
+                  {activePreviewTable && question.allTables[activePreviewTable] && (
+                    <div className="border border-[var(--color-border)] rounded-[var(--radius-sm)] overflow-hidden bg-[var(--color-bg-subtle)] overflow-x-auto">
+                      <DataGrid data={question.allTables[activePreviewTable]} isMini />
+                    </div>
+                  )}
                 </div>
+              ) : (
+                question.schemaSample && (
+                  <div className="mt-7">
+                    <h3 className="text-[0.7rem] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.06em] mb-2.5">
+                      Table Preview ·{' '}
+                      <span className="text-[var(--color-accent)] normal-case">{question.dbTableName}</span>
+                    </h3>
+                    <div className="border border-[var(--color-border)] rounded-[var(--radius-sm)] overflow-hidden bg-[var(--color-bg-subtle)] overflow-x-auto">
+                      <DataGrid data={question.schemaSample} isMini />
+                    </div>
+                  </div>
+                )
               )}
 
               <div className="mt-6">

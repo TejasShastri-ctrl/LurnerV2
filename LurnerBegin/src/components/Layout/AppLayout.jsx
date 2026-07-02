@@ -36,6 +36,7 @@ export default function AppLayout({ children }) {
     <div className="flex min-h-screen bg-[var(--color-bg-app)]">
 
       {/* ── Left Sidebar ── */}
+      {isAuthenticated && 
       <aside
         style={{ width: SIDEBAR_W }}
         className="bg-[var(--color-bg-sidebar)] h-screen fixed top-0 left-0 flex flex-col z-50 border-r border-white/5"
@@ -103,11 +104,12 @@ export default function AppLayout({ children }) {
           )}
         </div>
       </aside>
+      }
 
       {/* ── Main Content ── */}
       <div
         style={{
-          marginLeft: SIDEBAR_W,
+          marginLeft: isAuthenticated ? SIDEBAR_W : 0,
           marginRight: isAuthenticated ? (sidebarOpen ? FRIENDS_W : 48) : 0,
           transition: 'margin-right 0.25s ease',
         }}
