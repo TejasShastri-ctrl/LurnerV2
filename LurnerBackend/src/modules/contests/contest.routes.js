@@ -23,4 +23,7 @@ router.post("/:id/join", authMiddleware, contestController.joinContestHandler);
 // Submit a solution for a contest question
 router.post("/:id/submit", authMiddleware, contestController.contestSubmitHandler);
 
+// Execute query for a contest question (dry-run)
+router.post("/:id/execute", authMiddleware, contestController.contestExecuteHandler);
+
 export default router;

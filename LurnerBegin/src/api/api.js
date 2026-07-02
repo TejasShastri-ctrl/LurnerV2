@@ -59,14 +59,14 @@ export const createQuestion = async (data, token) => {
     return resdata;
 }
 
-export const generateExpectedOutput = async (initSql, solutionSql, token) => {
+export const generateExpectedOutput = async (payload, token) => {
     const res = await fetch(`${BASE_URL}/questions/generateOutput`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ initSql, solutionSql })
+        body: JSON.stringify(payload)
     });
     if (!res.ok) {
         const err = await res.json();
@@ -277,4 +277,153 @@ export const fetchAiReport = async (token, days = 7) => {
         throw new Error(errorData.error || 'Failed to fetch report');
     }
     return await res.json();
+}
+
+// Contests
+export const fetchContests = async (token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.error("Failed to fetch contests:", e);
+        return [];
+    }
+}
+
+export const fetchContestById = async (id, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Failed to fetch contest details");
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to fetch contest details:", e);
+        return null;
+    }
+}
+
+export const joinContest = async (id, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests/${id}/join`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Failed to join contest");
+        }
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to join contest:", e);
+        throw e;
+    }
+}
+
+export const submitContestSolution = async (contestId, contestQuestionId, sql, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests/${contestId}/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ sql, contestQuestionId })
+        });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Failed to submit solution");
+        }
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to submit solution:", e);
+        throw e;
+    }
+}
+
+export const createContest = async (contestData, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(contestData)
+        });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Failed to create contest");
+        }
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to create contest:", e);
+        throw e;
+    }
+}
+
+export const fetchAllDatasets = async (token) => {
+    try {
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`${BASE_URL}/questions/datasets`, { headers });
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.error("error while fetching datasets:", e);
+        return [];
+    }
+}
+
+export const createDataset = async (data, token) => {
+    const res = await fetch(`${BASE_URL}/questions/datasets`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    const resdata = await res.json();
+    if (!res.ok) {
+        throw new Error(resdata.error || "Failed to create dataset");
+    }
+    return resdata;
+}
+
+export const updateDataset = async (id, data, token) => {
+    const res = await fetch(`${BASE_URL}/questions/datasets/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    const resdata = await res.json();
+    if (!res.ok) {
+        throw new Error(resdata.error || "Failed to update dataset");
+    }
+    return resdata;
+}
+
+export const deleteDataset = async (id, token) => {
+    const res = await fetch(`${BASE_URL}/questions/datasets/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+    const resdata = await res.json();
+    if (!res.ok) {
+        throw new Error(resdata.error || "Failed to delete dataset");
+    }
+    return resdata;
 }

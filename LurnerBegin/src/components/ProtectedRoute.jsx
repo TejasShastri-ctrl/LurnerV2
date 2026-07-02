@@ -6,29 +6,19 @@ import { useAuth } from '../context/AuthContext';
  * Shows nothing while the auth state is being restored from localStorage.
  */
 export default function ProtectedRoute({ children }) {
-    const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
 
-    if (loading) {
-        // Avoid flash of redirect while session is being restored
-        return (
-            <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                height: '100vh', background: 'var(--bg-app)',
-            }}>
-                <div style={{
-                    width: 32, height: 32,
-                    border: '3px solid var(--border)',
-                    borderTopColor: 'var(--accent)',
-                    borderRadius: '50%',
-                    animation: 'spin 0.8s linear infinite',
-                }} />
-            </div>
-        );
-    }
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[var(--color-bg-app)]">
+        <div className="w-8 h-8 rounded-full border-[3px] border-[var(--color-border)] border-t-[var(--color-accent)] animate-spin" />
+      </div>
+    );
+  }
 
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
-    }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
-    return children;
+  return children;
 }

@@ -17,7 +17,7 @@ export const executeSqlHandler = async (req, res) => {
         let errorMessage = null;
 
         try {
-            const execution = await executeSql(question.initSql, sql);
+            const execution = await executeSql(question.dataset?.initSql || "", sql);
             results = execution.data;
             executionTimeMs = execution.executionTimeMs;
             status = "SUCCESS"; 
@@ -58,9 +58,14 @@ export const createQuestion = async(req, res) => {
 }
 
 export const generateOutput = async (req, res) => {
-    const { initSql, solutionSql } = req.body;
+    const { initSql, datasetId, solutionSql } = req.body;
     try {
-        const execution = await executeSql(initSql, solutionSql);
+        let sqlToRun = initSql;
+        if (datasetId) {
+            const dataset = await prisma.dataset.findUnique({ where: { id: parseInt(datasetId) } });
+            if (dataset) sqlToRun = dataset.initSql;
+        }
+        const execution = await executeSql(sqlToRun, solutionSql);
         res.json({ expectedOutput: execution.data });
     } catch (e) {
         res.status(400).json({ error: e.error || e.message });
@@ -110,17 +115,83 @@ export const getQuestionDetails = async (req, res) => {
         if (!question) return res.status(404).json({ error: "Question not found" });
         
         let schemaSample = null;
-        if (question.dbTableName) {
+        let allTables = {};
+
+        if (question.dataset && question.dataset.initSql) {
             try {
-                const sample = await executeSql(question.initSql, `SELECT * FROM ${question.dbTableName} LIMIT 5`);
-                schemaSample = sample.data;
+                // 1. Get all tables in this dataset
+                const tablesResult = await executeSql(
+                    question.dataset.initSql, 
+                    "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+                );
+                
+                if (tablesResult && tablesResult.data) {
+                    for (const row of tablesResult.data) {
+                        const tableName = row.name;
+                        try {
+                            const sample = await executeSql(question.dataset.initSql, `SELECT * FROM ${tableName} LIMIT 5`);
+                            allTables[tableName] = sample.data;
+                        } catch (err) {
+                            console.error(`Failed to generate sample for table ${tableName}:`, err);
+                        }
+                    }
+                }
             } catch (e) {
-                console.error("Failed to generate schema sample:", e);
+                console.error("Failed to list tables for dataset:", e);
+            }
+
+            // Fallback / legacy support for schemaSample
+            if (question.dbTableName && allTables[question.dbTableName]) {
+                schemaSample = allTables[question.dbTableName];
+            } else if (question.dbTableName) {
+                try {
+                    const sample = await executeSql(question.dataset.initSql, `SELECT * FROM ${question.dbTableName} LIMIT 5`);
+                    schemaSample = sample.data;
+                } catch (e) {
+                    console.error("Failed to generate schema sample:", e);
+                }
             }
         }
 
-        res.json({ ...question, schemaSample });
+        res.json({ ...question, schemaSample, allTables });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 };
+
+export const listDatasets = async (req, res) => {
+    try {
+        const datasets = await questionService.getAllDatasets();
+        res.json(datasets);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};
+
+export const createDataset = async (req, res) => {
+    try {
+        const dataset = await questionService.createDataset(req.body);
+        res.status(201).json(dataset);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};
+
+export const updateDataset = async (req, res) => {
+    try {
+        const dataset = await questionService.updateDataset(req.params.id, req.body);
+        res.json(dataset);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};
+
+export const deleteDataset = async (req, res) => {
+    try {
+        await questionService.deleteDataset(req.params.id);
+        res.json({ message: "Dataset deleted successfully" });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};
+

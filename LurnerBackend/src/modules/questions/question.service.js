@@ -3,7 +3,8 @@ import prisma from "../../config/prisma.js";
 
 export const getQuestionById = async (id) => {
     return prisma.question.findUnique({
-        where: { id: parseInt(id) }
+        where: { id: parseInt(id) },
+        include: { dataset: true }
     });
 };
 
@@ -32,14 +33,14 @@ export const getAllTags = async () => {
 };
 
 export const createQuestion = async (data) => {
-    const {title, description, difficulty, tagId, initSql, dbTableName, solutionSql, expectedOutput} = data;
+    const {title, description, difficulty, tagId, datasetId, dbTableName, solutionSql, expectedOutput} = data;
     const question = await prisma.question.create({
         data : {
             title,
             description,
             difficulty,
             tagId,
-            initSql,
+            datasetId: parseInt(datasetId),
             dbTableName,
             solutionSql,
             expectedOutput
@@ -49,7 +50,7 @@ export const createQuestion = async (data) => {
 }
 
 export const updateQuestion = async (id, data) => {
-    const {title, description, difficulty, tagId, initSql, dbTableName, solutionSql, expectedOutput} = data;
+    const {title, description, difficulty, tagId, datasetId, dbTableName, solutionSql, expectedOutput} = data;
     const updatedQue = await prisma.question.update({
         where: {id: parseInt(id)},
         data: {
@@ -57,7 +58,7 @@ export const updateQuestion = async (id, data) => {
             description,
             difficulty,
             tagId,
-            initSql,
+            datasetId: parseInt(datasetId),
             dbTableName,
             solutionSql,
             expectedOutput
@@ -77,3 +78,31 @@ export const deleteQuestion = async (id) => {
         throw e;
     }
 }
+
+export const getAllDatasets = async () => {
+    return prisma.dataset.findMany({
+        orderBy: { name: "asc" }
+    });
+};
+
+export const createDataset = async (data) => {
+    const { name, description, initSql } = data;
+    return prisma.dataset.create({
+        data: { name, description, initSql }
+    });
+};
+
+export const updateDataset = async (id, data) => {
+    const { name, description, initSql } = data;
+    return prisma.dataset.update({
+        where: { id: parseInt(id) },
+        data: { name, description, initSql }
+    });
+};
+
+export const deleteDataset = async (id) => {
+    return prisma.dataset.delete({
+        where: { id: parseInt(id) }
+    });
+};
+

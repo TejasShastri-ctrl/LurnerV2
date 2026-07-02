@@ -3,8 +3,8 @@ import prisma from "../../config/prisma.js";
 /**
  * Create a new contest with questions
  */
-export const createContest = async (data, creatorId) => {
-    const { title, description, startTime, endTime, questionIds } = data;
+export const createContest = async (data) => {
+    const { title, description, startTime, endTime, questions } = data;
     
     return prisma.contest.create({
         data: {
@@ -12,11 +12,16 @@ export const createContest = async (data, creatorId) => {
             description,
             startTime: new Date(startTime),
             endTime: new Date(endTime),
-            creatorId,
             questions: {
-                create: questionIds.map((id, index) => ({
-                    questionId: parseInt(id),
-                    order: index
+                create: questions.map((q, index) => ({
+                    order: index,
+                    title: q.title,
+                    description: q.description,
+                    difficulty: q.difficulty,
+                    datasetId: parseInt(q.datasetId),
+                    dbTableName: q.dbTableName,
+                    solutionSql: q.solutionSql,
+                    expectedOutput: q.expectedOutput
                 }))
             }
         },
@@ -46,9 +51,24 @@ export const getContestById = async (id) => {
         where: { id: parseInt(id) },
         include: {
             questions: {
-                include: {
-                    question: true
-                }
+                select: {
+                    id: true,
+                    order: true,
+                    title: true,
+                    description: true,
+                    difficulty: true,
+                    dbTableName: true,
+                    dataset: {
+                        select: {
+                            id: true,
+                            name: true,
+                            initSql: true
+                        }
+                    },
+                    expectedOutput: true
+                    // EXPLICITLY OMIT solutionSql
+                },
+                orderBy: { order: "asc" }
             },
             participants: {
                 include: {
@@ -110,4 +130,38 @@ export const isUserInContest = async (userId, contestId) => {
         }
     });
     return !!participant;
+};
+
+/**
+ * Get a specific Contest Question by its ID
+ */
+export const getContestQuestionById = async (id) => {
+    return prisma.contestQuestion.findUnique({
+        where: { id: parseInt(id) },
+        include: { dataset: true }
+    });
+};
+
+/**
+ * Check if a user has already successfully solved this question in this contest
+ */
+export const hasUserSolvedQuestionInContest = async (userId, contestId, contestQuestionId) => {
+    const submission = await prisma.contestSubmission.findFirst({
+        where: {
+            userId,
+            contestId: parseInt(contestId),
+            contestQuestionId: parseInt(contestQuestionId),
+            status: "SUCCESS"
+        }
+    });
+    return !!submission;
+};
+
+/**
+ * Record a submission for a contest
+ */
+export const recordContestSubmission = async (data) => {
+    return prisma.contestSubmission.create({
+        data
+    });
 };

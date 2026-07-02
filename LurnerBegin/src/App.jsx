@@ -10,6 +10,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { SocketProvider } from './context/SocketContext'
 import Admin from './pages/Admin'
+import Contests from './pages/Contests'
+import ContestWorkspace from './pages/ContestWorkspace'
 
 /**
  * GuestRoute — Redirects already-authenticated users away from login/register.
@@ -44,6 +46,12 @@ function App() {
               } />
               <Route path="/admin" element={
                 <ProtectedRoute><Admin /></ProtectedRoute>
+              } />
+              <Route path="/contests" element={
+                <ProtectedRoute><Contests /></ProtectedRoute>
+              } />
+              <Route path="/editor/contest/:contestId" element={
+                <ProtectedRoute><ContestWorkspace /></ProtectedRoute>
               } />
 
               {/* Fallback */}

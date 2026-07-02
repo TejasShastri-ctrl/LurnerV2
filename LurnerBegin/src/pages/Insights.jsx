@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../api/api';
 
-/* ── Stat card icons (simple SVG, no emojis) ── */
+/* ── Stat card icons ── */
 const STAT_ICONS = {
   trophy: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -32,17 +32,16 @@ const STAT_ICONS = {
 
 export default function Insights() {
   const { token } = useAuth();
-  const [stats, setStats]       = useState(null);
-  const [heatmap, setHeatmap]   = useState([]);
-  const [skills, setSkills]     = useState([]);
-  const [errors, setErrors]     = useState([]);
+  const [stats, setStats]         = useState(null);
+  const [heatmap, setHeatmap]     = useState([]);
+  const [skills, setSkills]       = useState([]);
+  const [errors, setErrors]       = useState([]);
   const [telemetry, setTelemetry] = useState(null);
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading]     = useState(true);
 
-  // AI Report states
-  const [aiReport, setAiReport] = useState(null);
+  const [aiReport, setAiReport]   = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState(null);
+  const [aiError, setAiError]     = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -53,18 +52,10 @@ export default function Insights() {
         api.fetchErrorDistribution(token),
         api.fetchPerformanceTelemetry(token),
       ]).then(([s, h, sk, e, t]) => {
-        setStats(s);
-        setHeatmap(h);
-        setSkills(sk);
-        setErrors(e);
-        setTelemetry(t);
+        setStats(s); setHeatmap(h); setSkills(sk); setErrors(e); setTelemetry(t);
         setLoading(false);
-      }).catch(err => {
-        console.error('Failed to load insights:', err);
-        setLoading(false);
-      });
+      }).catch(err => { console.error('Failed to load insights:', err); setLoading(false); });
 
-      // Try to load cached AI report silently
       api.fetchAiReport(token, 7).then(report => {
         if (report) setAiReport(report.reportData);
       }).catch(console.error);
@@ -72,8 +63,7 @@ export default function Insights() {
   }, [token]);
 
   const handleGenerateAiReport = async () => {
-    setAiLoading(true);
-    setAiError(null);
+    setAiLoading(true); setAiError(null);
     try {
       const response = await api.generateAiReport(token, 7);
       setAiReport(response.reportData);
@@ -86,102 +76,58 @@ export default function Insights() {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px 28px', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+      <div className="p-10 text-[var(--color-text-muted)] text-sm">
         Analyzing your SQL performance…
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '28px', maxWidth: 1100 }}>
+    <div className="p-7 max-w-[1100px]">
 
       {/* Page header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{
-          fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)',
-          letterSpacing: '-0.01em', marginBottom: 4,
-        }}>
+      <div className="mb-7">
+        <h1 className="text-[1.35rem] font-bold text-[var(--color-text-primary)] tracking-tight mb-1">
           Personal Insights
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+        <p className="text-[var(--color-text-muted)] text-sm">
           A breakdown of your SQL mastery and submission habits.
         </p>
       </div>
 
-      {/* Summary stat cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-        gap: 16, marginBottom: 24,
-      }}>
-        <StatCard
-          title="Total Solved"
-          value={stats?.totalSolved || 0}
-          icon={STAT_ICONS.trophy}
-          iconColor="var(--accent)"
-          iconBg="var(--accent-light)"
-        />
-        <StatCard
-          title="Accuracy"
-          value={`${stats?.accuracy || 0}%`}
-          icon={STAT_ICONS.target}
-          iconColor="var(--success)"
-          iconBg="var(--success-bg)"
-        />
-        <StatCard
-          title="Avg Latency"
-          value={`${telemetry?.averageExecutionTimeMs || 0}ms`}
-          icon={STAT_ICONS.zap}
-          iconColor="var(--warning)"
-          iconBg="var(--warning-bg)"
-        />
-        <StatCard
-          title="Total Runs"
-          value={stats?.totalSubmissions || 0}
-          icon={STAT_ICONS.repeat}
-          iconColor="#7c6df0"
-          iconBg="#f0effe"
-        />
+      {/* Stat cards */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4 mb-6">
+        <StatCard title="Total Solved"  value={stats?.totalSolved || 0}                           icon={STAT_ICONS.trophy} iconColor="var(--color-accent)"   iconBg="var(--color-accent-light)" />
+        <StatCard title="Accuracy"      value={`${stats?.accuracy || 0}%`}                        icon={STAT_ICONS.target} iconColor="var(--color-success)"  iconBg="var(--color-success-bg)"  />
+        <StatCard title="Avg Latency"   value={`${telemetry?.averageExecutionTimeMs || 0}ms`}     icon={STAT_ICONS.zap}    iconColor="var(--color-warning)"  iconBg="var(--color-warning-bg)"  />
+        <StatCard title="Total Runs"    value={stats?.totalSubmissions || 0}                       icon={STAT_ICONS.repeat} iconColor="#7c6df0"               iconBg="#f0effe"                  />
       </div>
 
       {/* Main grid — topic mastery + error breakdown */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="grid grid-cols-[2fr_1fr] gap-4 mb-6">
 
         {/* Skill Mastery */}
-        <section className="card" style={{ padding: 24 }}>
-          <h2 style={{
-            fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)',
-            marginBottom: 20,
-          }}>
+        <section className="bg-[var(--color-bg-content)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-[0_1px_4px_rgba(17,24,39,0.07)] p-6">
+          <h2 className="text-[0.95rem] font-bold text-[var(--color-text-primary)] mb-5">
             Topic Mastery
           </h2>
           {skills.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No skill data yet.</p>
+            <p className="text-[var(--color-text-muted)] text-[0.85rem]">No skill data yet.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="flex flex-col gap-4">
               {skills.map(skill => (
                 <div key={skill.topic}>
-                  <div style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    marginBottom: 6, fontSize: '0.85rem',
-                  }}>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{skill.topic}</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                  <div className="flex justify-between mb-1.5 text-[0.85rem]">
+                    <span className="font-semibold text-[var(--color-text-primary)]">{skill.topic}</span>
+                    <span className="text-[var(--color-text-muted)] text-[0.78rem]">
                       {skill.solvedQuestions}/{skill.totalQuestions} solved
                     </span>
                   </div>
-                  <div style={{
-                    height: 7, background: 'var(--bg-app)',
-                    borderRadius: 99, overflow: 'hidden',
-                    border: '1px solid var(--border)',
-                  }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${skill.masteryPercentage}%`,
-                      background: 'var(--accent)',
-                      borderRadius: 99,
-                      transition: 'width 0.8s ease-out',
-                    }} />
+                  <div className="h-[7px] bg-[var(--color-bg-app)] rounded-full overflow-hidden border border-[var(--color-border)]">
+                    <div
+                      className="h-full bg-[var(--color-accent)] rounded-full transition-[width] duration-[800ms] ease-out"
+                      style={{ width: `${skill.masteryPercentage}%` }}
+                    />
                   </div>
                 </div>
               ))}
@@ -190,41 +136,26 @@ export default function Insights() {
         </section>
 
         {/* Error breakdown */}
-        <section className="card" style={{ padding: 24 }}>
-          <h2 style={{
-            fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)',
-            marginBottom: 20,
-          }}>
+        <section className="bg-[var(--color-bg-content)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-[0_1px_4px_rgba(17,24,39,0.07)] p-6">
+          <h2 className="text-[0.95rem] font-bold text-[var(--color-text-primary)] mb-5">
             Frequent Pitfalls
           </h2>
           {errors.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {errors.map(err => (
                 <div
                   key={err.errorType}
-                  style={{
-                    padding: '9px 12px',
-                    background: 'var(--danger-bg)',
-                    border: '1px solid var(--danger-border)',
-                    borderRadius: 'var(--radius-sm)',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  }}
+                  className="px-3 py-[9px] bg-[var(--color-danger-bg)] border border-[var(--color-danger-border)] rounded-[var(--radius-sm)] flex justify-between items-center"
                 >
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--danger)' }}>
-                    {err.errorType}
-                  </span>
-                  <span style={{
-                    fontSize: '0.72rem', fontWeight: 700,
-                    background: 'var(--danger)', color: 'white',
-                    padding: '2px 8px', borderRadius: 99,
-                  }}>
+                  <span className="text-[0.8rem] font-semibold text-[var(--color-danger)]">{err.errorType}</span>
+                  <span className="text-[0.72rem] font-bold bg-[var(--color-danger)] text-white px-2 py-[2px] rounded-full">
                     {err.count}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <div className="text-[var(--color-text-muted)] text-[0.85rem]">
               No errors recorded yet — clean slate! ✓
             </div>
           )}
@@ -232,128 +163,112 @@ export default function Insights() {
       </div>
 
       {/* Activity Heatmap */}
-      <section className="card" style={{ padding: 24 }}>
-        <h2 style={{
-          fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)',
-          marginBottom: 16,
-        }}>
+      <section className="bg-[var(--color-bg-content)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-[0_1px_4px_rgba(17,24,39,0.07)] p-6">
+        <h2 className="text-[0.95rem] font-bold text-[var(--color-text-primary)] mb-4">
           Activity — Last 30 Days
         </h2>
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+        <div className="flex gap-[5px] flex-wrap">
           {Array.from({ length: 30 }).map((_, i) => {
             const date = new Date();
             date.setDate(date.getDate() - (29 - i));
             const dateStr = date.toISOString().split('T')[0];
             const activity = heatmap.find(h => h.date === dateStr);
             const count = activity ? activity.count : 0;
-
-            // Muted green scale that fits the light theme
-            let bg = 'var(--border)';
+            let bg = 'var(--color-border)';
             if (count > 0) bg = '#bbf7d0';
             if (count > 2) bg = '#4ade80';
-            if (count > 5) bg = 'var(--success)';
-
+            if (count > 5) bg = 'var(--color-success)';
             return (
               <div
                 key={i}
                 title={`${dateStr}: ${count} activit${count === 1 ? 'y' : 'ies'}`}
-                style={{
-                  width: 22, height: 22,
-                  background: bg,
-                  borderRadius: 4,
-                  border: '1px solid rgba(0,0,0,0.04)',
-                  cursor: count > 0 ? 'default' : 'default',
-                  transition: 'opacity 0.15s',
-                }}
+                className="w-[22px] h-[22px] rounded-[4px] border border-black/[0.04] transition-opacity duration-150"
+                style={{ background: bg }}
               />
             );
           })}
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 12 }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Less</span>
-          {['var(--border)', '#bbf7d0', '#4ade80', 'var(--success)'].map((c, i) => (
-            <div key={i} style={{ width: 14, height: 14, background: c, borderRadius: 3, border: '1px solid rgba(0,0,0,0.04)' }} />
+        <div className="flex gap-1.5 items-center mt-3">
+          <span className="text-[0.7rem] text-[var(--color-text-muted)]">Less</span>
+          {['var(--color-border)', '#bbf7d0', '#4ade80', 'var(--color-success)'].map((c, i) => (
+            <div key={i} className="w-3.5 h-3.5 rounded-[3px] border border-black/[0.04]" style={{ background: c }} />
           ))}
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>More</span>
+          <span className="text-[0.7rem] text-[var(--color-text-muted)]">More</span>
         </div>
       </section>
 
       {/* AI Insights Section */}
-      <section className="card" style={{ padding: 24, marginTop: 24, border: '1px solid var(--accent-light)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <section className="mt-6 bg-[var(--color-bg-content)] border border-[var(--color-accent-light)] rounded-[var(--radius-md)] shadow-[0_1px_4px_rgba(17,24,39,0.07)] p-6">
+        <div className="flex justify-between items-center mb-5">
           <div>
-            <h2 style={{
-              fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)',
-              marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8
-            }}>
+            <h2 className="text-[1.05rem] font-bold text-[var(--color-text-primary)] mb-1 flex items-center gap-2">
               ✨ AI Performance Review (Last 7 Days)
             </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+            <p className="text-[var(--color-text-muted)] text-[0.85rem] m-0">
               Personalized breakdown of your strengths and weaknesses by AI.
             </p>
           </div>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleGenerateAiReport} 
+          <button
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[var(--color-accent)] text-white text-[0.85rem] font-semibold rounded-[var(--radius-sm)] cursor-pointer transition-all duration-150 hover:bg-[var(--color-accent-hover)] disabled:opacity-45 disabled:cursor-not-allowed"
+            onClick={handleGenerateAiReport}
             disabled={aiLoading}
-            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
           >
             {aiLoading ? 'Generating...' : aiReport ? 'Regenerate Report' : 'Generate Report'}
           </button>
         </div>
 
         {aiError && (
-          <div style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: 16 }}>
-            Error: {aiError}
-          </div>
+          <div className="text-[var(--color-danger)] text-[0.85rem] mb-4">Error: {aiError}</div>
         )}
 
         {aiReport ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: 8, borderLeft: '4px solid var(--accent)' }}>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 500, margin: 0 }}>
+          <div className="flex flex-col gap-5">
+            <div className="p-4 bg-[var(--color-bg-app)] rounded-lg border-l-4 border-[var(--color-accent)]">
+              <p className="text-[0.9rem] text-[var(--color-text-primary)] font-medium m-0">
                 "{aiReport.executive_summary}"
               </p>
             </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+
+            <div className="grid grid-cols-2 gap-5">
               <div>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--success)', marginBottom: 8 }}>Strengths</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{aiReport.strengths}</p>
+                <h3 className="text-[0.85rem] font-bold text-[var(--color-success)] mb-2">Strengths</h3>
+                <p className="text-[0.85rem] text-[var(--color-text-secondary)] leading-relaxed">{aiReport.strengths}</p>
               </div>
               <div>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--warning)', marginBottom: 8 }}>Areas for Improvement</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{aiReport.areas_for_improvement}</p>
+                <h3 className="text-[0.85rem] font-bold text-[var(--color-warning)] mb-2">Areas for Improvement</h3>
+                <p className="text-[0.85rem] text-[var(--color-text-secondary)] leading-relaxed">{aiReport.areas_for_improvement}</p>
               </div>
             </div>
 
             <div>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>Competence Scores</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <h3 className="text-[0.85rem] font-bold text-[var(--color-text-primary)] mb-3">Competence Scores</h3>
+              <div className="grid grid-cols-2 gap-4">
                 {Object.entries(aiReport.competence_scores || {}).map(([topic, score]) => (
                   <div key={topic}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                    <div className="flex justify-between mb-1.5 text-[0.8rem]">
+                      <span className="font-semibold text-[var(--color-text-secondary)] capitalize">
                         {topic.replace(/_/g, ' ')}
                       </span>
-                      <span style={{ fontWeight: 700 }}>{score}%</span>
+                      <span className="font-bold">{score}%</span>
                     </div>
-                    <div style={{ height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%', width: `${score}%`, 
-                        background: score > 75 ? 'var(--success)' : score > 40 ? 'var(--warning)' : 'var(--danger)',
-                        borderRadius: 4
-                      }} />
+                    <div className="h-1.5 bg-[var(--color-border)] rounded-[4px] overflow-hidden">
+                      <div
+                        className="h-full rounded-[4px]"
+                        style={{
+                          width: `${score}%`,
+                          background: score > 75 ? 'var(--color-success)' : score > 40 ? 'var(--color-warning)' : 'var(--color-danger)',
+                        }}
+                      />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-            
+
             {aiReport.common_mistakes?.length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>Common Mistakes to Avoid</h3>
-                <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              <div className="mt-2">
+                <h3 className="text-[0.85rem] font-bold text-[var(--color-danger)] mb-2">Common Mistakes to Avoid</h3>
+                <ul className="m-0 pl-5 text-[0.85rem] text-[var(--color-text-secondary)] leading-relaxed">
                   {aiReport.common_mistakes.map((mistake, idx) => (
                     <li key={idx}>{mistake}</li>
                   ))}
@@ -363,7 +278,7 @@ export default function Insights() {
           </div>
         ) : (
           !aiLoading && (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <div className="text-center py-8 text-[var(--color-text-muted)] text-[0.85rem]">
               Click "Generate Report" to let the AI analyze your recent queries.
             </div>
           )
@@ -373,28 +288,21 @@ export default function Insights() {
   );
 }
 
-/* ── Stat card component ── */
+/* ── Stat card ── */
 function StatCard({ title, value, icon, iconColor, iconBg }) {
   return (
-    <div className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{
-        width: 44, height: 44, borderRadius: 10,
-        background: iconBg,
-        color: iconColor,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-      }}>
+    <div className="bg-[var(--color-bg-content)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-[0_1px_4px_rgba(17,24,39,0.07)] px-5 py-[18px] flex items-center gap-3.5">
+      <div
+        className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0"
+        style={{ background: iconBg, color: iconColor }}
+      >
         {icon}
       </div>
       <div>
-        <div style={{
-          fontSize: '0.68rem', fontWeight: 700,
-          color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em',
-          marginBottom: 2,
-        }}>
+        <div className="text-[0.68rem] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.07em] mb-0.5">
           {title}
         </div>
-        <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
+        <div className="text-[1.3rem] font-bold text-[var(--color-text-primary)] leading-none">
           {value}
         </div>
       </div>

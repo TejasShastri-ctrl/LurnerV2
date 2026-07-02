@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { fetchFriends, fetchPendingInvites, acceptInvite, declineInvite, sendInvite } from '../../api/api';
 
-/* ── Toggle icon (chevron) ── */
+/* ── Icons ── */
 const ChevronRight = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="9 18 15 12 9 6"/>
@@ -20,13 +20,13 @@ export default function FriendsSidebar({ open, onToggle, width = 288 }) {
   const { user, token } = useAuth();
   const { onlineFriends, socket } = useSocket();
 
-  const [friends, setFriends]             = useState([]);
+  const [friends, setFriends]               = useState([]);
   const [pendingInvites, setPendingInvites] = useState([]);
   const [inviteCodeInput, setInviteCodeInput] = useState('');
-  const [loading, setLoading]             = useState(true);
-  const [sendingInvite, setSendingInvite]  = useState(false);
+  const [loading, setLoading]               = useState(true);
+  const [sendingInvite, setSendingInvite]   = useState(false);
   const [showInviteInput, setShowInviteInput] = useState(false);
-  const [copyLabel, setCopyLabel]          = useState('Copy');
+  const [copyLabel, setCopyLabel]           = useState('Copy');
 
   const loadData = useCallback(async () => {
     if (!user || !token) return;
@@ -60,15 +60,8 @@ export default function FriendsSidebar({ open, onToggle, width = 288 }) {
     setSendingInvite(true);
     try {
       const res = await sendInvite(inviteCodeInput.trim(), token);
-      if (!res.error) {
-        setInviteCodeInput('');
-        setShowInviteInput(false);
-      }
-    } catch {
-      // silently ignore — toast system would be ideal here
-    } finally {
-      setSendingInvite(false);
-    }
+      if (!res.error) { setInviteCodeInput(''); setShowInviteInput(false); }
+    } catch {} finally { setSendingInvite(false); }
   };
 
   const handleAccept  = async (id) => { try { await acceptInvite(id, token);  loadData(); } catch {} };
@@ -87,38 +80,23 @@ export default function FriendsSidebar({ open, onToggle, width = 288 }) {
   const offline = friends.filter(f => !onlineFriends.includes(f.id));
 
   return (
-    <aside style={{
-      width: open ? width : 48,
-      background: 'var(--bg-content)',
-      borderLeft: '1px solid var(--border)',
-      height: '100vh',
-      position: 'fixed', right: 0, top: 0,
-      display: 'flex', flexDirection: 'column',
-      overflow: 'hidden',
-      transition: 'width 0.25s ease',
-      zIndex: 100,
-      boxShadow: open ? 'var(--shadow-md)' : 'none',
-    }}>
+    <aside
+      style={{ width: open ? width : 48, transition: 'width 0.25s ease', boxShadow: open ? '0 4px 12px rgba(17,24,39,0.08)' : 'none' }}
+      className="bg-[var(--color-bg-content)] border-l border-[var(--color-border)] h-screen fixed right-0 top-0 flex flex-col overflow-hidden z-[100]"
+    >
 
       {/* Toggle button */}
       <button
         onClick={onToggle}
         title={open ? 'Collapse panel' : 'Expand friends panel'}
-        style={{
-          display: 'flex', alignItems: 'center',
-          justifyContent: open ? 'space-between' : 'center',
-          width: '100%', padding: open ? '14px 16px' : '14px',
-          background: 'transparent', border: 'none',
-          borderBottom: '1px solid var(--border)',
-          cursor: 'pointer', color: 'var(--text-muted)',
-          transition: 'all 0.15s', flexShrink: 0, gap: 8,
-        }}
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        className={[
+          'flex items-center w-full border-none border-b border-[var(--color-border)] cursor-pointer text-[var(--color-text-muted)] transition-all duration-150 shrink-0 gap-2 bg-transparent hover:bg-[var(--color-bg-subtle)]',
+          open ? 'justify-between px-4 py-[14px]' : 'justify-center p-[14px]',
+        ].join(' ')}
       >
         {open ? (
           <>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+            <span className="text-[0.72rem] font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
               Friends
             </span>
             <ChevronRight />
@@ -128,66 +106,49 @@ export default function FriendsSidebar({ open, onToggle, width = 288 }) {
         )}
       </button>
 
+      {/* Collapsed avatars */}
       {!open && (
-        <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <div className="py-4 flex flex-col items-center gap-3">
           {loading ? (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }}>...</div>
+            <div className="text-[var(--color-text-muted)] text-[0.6rem]">...</div>
           ) : (
             <>
-              {online.map(f => <FriendListItem key={f.id} friend={f} online={true} isOpen={open} />)}
+              {online.map(f  => <FriendListItem key={f.id} friend={f} online={true}  isOpen={open} />)}
               {offline.map(f => <FriendListItem key={f.id} friend={f} online={false} isOpen={open} />)}
             </>
           )}
         </div>
       )}
 
+      {/* Expanded content */}
       {open && (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 16px' }}>
-
-          
+        <div className="flex-1 overflow-y-auto px-4 py-[18px]">
 
           {/* Pending invites */}
           {pendingInvites.length > 0 && (
-            <div style={{ marginBottom: 22 }}>
-              <div style={{
-                fontSize: '0.62rem', fontWeight: 700,
-                color: 'var(--accent)', textTransform: 'uppercase',
-                letterSpacing: '0.08em', marginBottom: 10,
-              }}>
+            <div className="mb-[22px]">
+              <div className="text-[0.62rem] font-bold text-[var(--color-accent)] uppercase tracking-[0.08em] mb-2.5">
                 Pending · {pendingInvites.length}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="flex flex-col gap-2">
                 {pendingInvites.map(invite => (
                   <div
                     key={invite.id}
-                    style={{
-                      background: 'var(--accent-light)',
-                      border: '1px solid var(--accent-border)',
-                      padding: '10px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                    }}
+                    className="bg-[var(--color-accent-light)] border border-[var(--color-accent-border)] px-3 py-2.5 rounded-[var(--radius-sm)]"
                   >
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>
+                    <div className="text-[0.82rem] font-semibold text-[var(--color-text-primary)] mb-2">
                       {invite.sender.name} sent an invite
                     </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div className="flex gap-1.5">
                       <button
                         onClick={() => handleAccept(invite.id)}
-                        style={{
-                          flex: 1, padding: '5px 0', background: 'var(--accent)',
-                          color: 'white', border: 'none', borderRadius: 5,
-                          fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
-                        }}
+                        className="flex-1 py-[5px] bg-[var(--color-accent)] text-white border-none rounded-[5px] text-[0.72rem] font-semibold cursor-pointer"
                       >
                         Accept
                       </button>
                       <button
                         onClick={() => handleDecline(invite.id)}
-                        style={{
-                          flex: 1, padding: '5px 0', background: 'transparent',
-                          border: '1px solid var(--border)', color: 'var(--text-secondary)',
-                          borderRadius: 5, fontSize: '0.72rem', fontWeight: 500, cursor: 'pointer',
-                        }}
+                        className="flex-1 py-[5px] bg-transparent border border-[var(--color-border)] text-[var(--color-text-secondary)] rounded-[5px] text-[0.72rem] font-medium cursor-pointer"
                       >
                         Decline
                       </button>
@@ -200,23 +161,18 @@ export default function FriendsSidebar({ open, onToggle, width = 288 }) {
 
           {/* Friends list */}
           <div>
-            <div style={{
-              fontSize: '0.62rem', fontWeight: 700,
-              color: 'var(--text-muted)', textTransform: 'uppercase',
-              letterSpacing: '0.08em', marginBottom: 10,
-            }}>
+            <div className="text-[0.62rem] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em] mb-2.5">
               Friends {friends.length > 0 && `· ${friends.length}`}
             </div>
-
             {loading ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Loading…</div>
+              <div className="text-[var(--color-text-muted)] text-[0.82rem]">Loading…</div>
             ) : friends.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+              <div className="text-[var(--color-text-muted)] text-[0.82rem]">
                 No friends yet. Share your code to connect!
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {online.map(f => <FriendListItem key={f.id} friend={f} online={true} isOpen={open} />)}
+              <div className="flex flex-col gap-2.5">
+                {online.map(f  => <FriendListItem key={f.id} friend={f} online={true}  isOpen={open} />)}
                 {offline.map(f => <FriendListItem key={f.id} friend={f} online={false} isOpen={open} />)}
               </div>
             )}
@@ -224,45 +180,29 @@ export default function FriendsSidebar({ open, onToggle, width = 288 }) {
         </div>
       )}
 
-      {open && 
-          <div style={{
-            background: 'var(--bg-subtle)',
-            padding: '11px 13px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border)',
-            width: '99%',
-            margin: '0 auto',
-            marginBottom: '2px'
-          }}>
-            <div style={{
-              fontSize: '0.62rem', fontWeight: 700,
-              color: 'var(--text-muted)', textTransform: 'uppercase',
-              letterSpacing: '0.08em', marginBottom: 6,
-            }}>
-              Your Friend Code
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <code style={{ fontSize: '0.88rem', color: 'var(--accent)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                {user.friendCode || 'LURN-????'}
-              </code>
-              <button
-                onClick={handleCopy}
-                style={{
-                  background: 'none', border: '1px solid var(--border)',
-                  color: 'var(--text-secondary)', cursor: 'pointer',
-                  fontSize: '0.68rem', fontWeight: 600,
-                  padding: '3px 9px', borderRadius: 4,
-                  transition: 'all 0.15s',
-                }}
-              >
-                {copyLabel}
-              </button>
-            </div>
-          </div>}
+      {/* Friend code card */}
+      {open && (
+        <div className="bg-[var(--color-bg-subtle)] px-[13px] py-[11px] rounded-[var(--radius-sm)] border border-[var(--color-border)] w-[99%] mx-auto mb-[2px]">
+          <div className="text-[0.62rem] font-bold text-[var(--color-text-muted)] uppercase tracking-[0.08em] mb-1.5">
+            Your Friend Code
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <code className="text-[0.88rem] text-[var(--color-accent)] font-bold font-mono">
+              {user.friendCode || 'LURN-????'}
+            </code>
+            <button
+              onClick={handleCopy}
+              className="bg-none border border-[var(--color-border)] text-[var(--color-text-secondary)] cursor-pointer text-[0.68rem] font-semibold px-[9px] py-[3px] rounded-[4px] transition-all duration-150 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            >
+              {copyLabel}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add friend footer */}
       {open && (
-        <div style={{ padding: '14px 16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+        <div className="px-4 py-3.5 border-t border-[var(--color-border)] shrink-0">
           {showInviteInput ? (
             <form onSubmit={handleSendInvite}>
               <input
@@ -271,43 +211,20 @@ export default function FriendsSidebar({ open, onToggle, width = 288 }) {
                 value={inviteCodeInput}
                 onChange={e => setInviteCodeInput(e.target.value.toUpperCase())}
                 autoFocus
-                style={{
-                  width: '100%', padding: '9px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  marginBottom: 8, fontSize: '0.82rem',
-                  fontFamily: 'var(--font-mono)',
-                  outline: 'none',
-                }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                className="w-full px-3 py-[9px] rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-[var(--color-text-primary)] mb-2 text-[0.82rem] font-mono outline-none transition-[border-color] duration-150 focus:border-[var(--color-accent)]"
               />
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="flex gap-1.5">
                 <button
                   type="submit"
                   disabled={sendingInvite}
-                  style={{
-                    flex: 2, padding: '8px 0',
-                    background: 'var(--accent)', color: 'white',
-                    border: 'none', borderRadius: 'var(--radius-sm)',
-                    fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer',
-                  }}
+                  className="flex-[2] py-2 bg-[var(--color-accent)] text-white border-none rounded-[var(--radius-sm)] font-semibold text-[0.8rem] cursor-pointer disabled:opacity-45"
                 >
                   {sendingInvite ? 'Sending…' : 'Send Invite'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowInviteInput(false)}
-                  style={{
-                    flex: 1, padding: '8px 0',
-                    background: 'transparent',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-secondary)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '0.8rem', cursor: 'pointer',
-                  }}
+                  className="flex-1 py-2 bg-transparent border border-[var(--color-border)] text-[var(--color-text-secondary)] rounded-[var(--radius-sm)] text-[0.8rem] cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -316,17 +233,7 @@ export default function FriendsSidebar({ open, onToggle, width = 288 }) {
           ) : (
             <button
               onClick={() => setShowInviteInput(true)}
-              style={{
-                width: '100%', padding: '9px 0',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+              className="w-full py-[9px] rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] font-semibold text-[0.8rem] cursor-pointer transition-all duration-150 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
             >
               + Add Friend by Code
             </button>
@@ -340,37 +247,31 @@ export default function FriendsSidebar({ open, onToggle, width = 288 }) {
 /* ── Single friend list item ── */
 function FriendListItem({ friend, online, isOpen }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: isOpen ? 10 : 0 }}>
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: 8,
-          background: online ? 'var(--accent-light)' : 'var(--bg-subtle)',
-          border: '1px solid var(--border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: online ? 'var(--accent)' : 'var(--text-muted)',
-          fontWeight: 700, fontSize: '0.85rem',
-        }}>
+    <div className={`flex items-center ${isOpen ? 'gap-2.5' : 'gap-0'}`}>
+      <div className="relative shrink-0">
+        <div
+          className={`w-[34px] h-[34px] rounded-lg border border-[var(--color-border)] flex items-center justify-center font-bold text-[0.85rem] ${
+            online
+              ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)]'
+              : 'bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]'
+          }`}
+        >
           {friend.name[0].toUpperCase()}
         </div>
         {online && isOpen && (
-          <div style={{
-            position: 'absolute', bottom: 1, right: 1,
-            width: 9, height: 9, borderRadius: '50%',
-            background: 'var(--success)', border: '2px solid var(--bg-content)',
-          }} />
+          <div className="absolute bottom-[1px] right-[1px] w-[9px] h-[9px] rounded-full bg-[var(--color-success)] border-2 border-[var(--color-bg-content)]" />
         )}
       </div>
-      {isOpen && <div style={{ minWidth: 0 }}>
-        <div style={{
-          fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {friend.name}
+      {isOpen && (
+        <div className="min-w-0">
+          <div className="text-[0.84rem] font-semibold text-[var(--color-text-primary)] overflow-hidden text-ellipsis whitespace-nowrap">
+            {friend.name}
+          </div>
+          <div className={`text-[0.68rem] ${online ? 'text-[var(--color-success)]' : 'text-[var(--color-text-muted)]'}`}>
+            {online ? 'Online' : 'Offline'}
+          </div>
         </div>
-        <div style={{ fontSize: '0.68rem', color: online ? 'var(--success)' : 'var(--text-muted)' }}>
-          {online ? 'Online' : 'Offline'}
-        </div>
-      </div>}
+      )}
     </div>
   );
 }

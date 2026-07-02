@@ -24,6 +24,7 @@ async function main() {
     await prisma.follows.deleteMany();
     await prisma.question.deleteMany();
     await prisma.tag.deleteMany();
+    await prisma.dataset.deleteMany();
 
     // 1. Create tags
     const tagMap = {};
@@ -36,7 +37,7 @@ async function main() {
         tagMap[name] = tag.id;
     }
 
-    // Shared initSql for most employee-based questions
+    // 2. Create Datasets
     const empInitSql = `
         CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, department TEXT, salary INTEGER, hire_date TEXT);
         INSERT INTO employees (name, department, salary, hire_date) VALUES 
@@ -49,13 +50,36 @@ async function main() {
         ('Grace', 'Marketing', 68000, '2023-04-12');
     `;
 
+    const employeeDataset = await prisma.dataset.create({
+        data: {
+            name: "Employee Directory",
+            description: "A database containing basic employee details including departments, salaries, and hire dates.",
+            initSql: empInitSql
+        }
+    });
+
+    const projectInitSql = `
+        CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept_id INTEGER);
+        CREATE TABLE projects (id INTEGER PRIMARY KEY, title TEXT, emp_id INTEGER);
+        INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 2), ('Charlie', 1);
+        INSERT INTO projects (title, emp_id) VALUES ('Lurner API', 1), ('Mobile App', 2), ('Data Sync', 3);
+    `;
+
+    const projectsDataset = await prisma.dataset.create({
+        data: {
+            name: "Projects & People",
+            description: "A database mapping employees to their respective project assignments.",
+            initSql: projectInitSql
+        }
+    });
+
     const questions = [
         {
             title: "Employee Roster",
             description: "Retrieve all employee details to verify the current headcount.",
             difficulty: "EASY",
             tagId: tagMap["SELECT"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT * FROM employees",
             expectedOutput: [
@@ -73,7 +97,7 @@ async function main() {
             description: "Find all employees who earn more than 80,000.",
             difficulty: "EASY",
             tagId: tagMap["FILTERING"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT * FROM employees WHERE salary > 80000",
             expectedOutput: [
@@ -87,7 +111,7 @@ async function main() {
             description: "Calculate the total salary budget for the 'Engineering' department.",
             difficulty: "MEDIUM",
             tagId: tagMap["AGGREGATION"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT SUM(salary) AS total_salary FROM employees WHERE department = 'Engineering'",
             expectedOutput: [{ total_salary: 273000 }]
@@ -97,7 +121,7 @@ async function main() {
             description: "Sort all Sales employees by their salary in descending order.",
             difficulty: "MEDIUM",
             tagId: tagMap["SORTING"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT * FROM employees WHERE department = 'Sales' ORDER BY salary DESC",
             expectedOutput: [
@@ -110,7 +134,7 @@ async function main() {
             description: "Find the average salary for every department.",
             difficulty: "MEDIUM",
             tagId: tagMap["AGGREGATION"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT department, AVG(salary) AS avg_salary FROM employees GROUP BY department",
             expectedOutput: [
@@ -124,7 +148,7 @@ async function main() {
             description: "Retrieve employees hired after January 1st, 2023.",
             difficulty: "EASY",
             tagId: tagMap["FILTERING"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT * FROM employees WHERE hire_date > '2023-01-01'",
             expectedOutput: [
@@ -140,7 +164,7 @@ async function main() {
             description: "Identify the name and salary of the lowest-paid employee.",
             difficulty: "EASY",
             tagId: tagMap["AGGREGATION"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT name, salary FROM employees ORDER BY salary ASC LIMIT 1",
             expectedOutput: [{ name: "David", salary: 65000 }]
@@ -150,7 +174,7 @@ async function main() {
             description: "Find all employees whose names start with the letter 'A'.",
             difficulty: "EASY",
             tagId: tagMap["FILTERING"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT * FROM employees WHERE name LIKE 'A%'",
             expectedOutput: [{ id: 1, name: "Alice", department: "Engineering", salary: 90000, hire_date: '2023-01-15' }]
@@ -160,12 +184,7 @@ async function main() {
             description: "List each employee and the project they are assigned to using a JOIN.",
             difficulty: "HARD",
             tagId: tagMap["JOINS"],
-            initSql: `
-                CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept_id INTEGER);
-                CREATE TABLE projects (id INTEGER PRIMARY KEY, title TEXT, emp_id INTEGER);
-                INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 2), ('Charlie', 1);
-                INSERT INTO projects (title, emp_id) VALUES ('Lurner API', 1), ('Mobile App', 2), ('Data Sync', 3);
-            `,
+            datasetId: projectsDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT e.name, p.title FROM employees e JOIN projects p ON e.id = p.emp_id",
             expectedOutput: [
@@ -179,7 +198,7 @@ async function main() {
             description: "Find departments that have more than 2 employees.",
             difficulty: "HARD",
             tagId: tagMap["AGGREGATION"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT department, COUNT(*) as count FROM employees GROUP BY department HAVING COUNT(*) > 2",
             expectedOutput: [{ department: "Engineering", count: 3 }]
@@ -189,7 +208,7 @@ async function main() {
             description: "List all names and salaries, sorted from highest to lowest salary.",
             difficulty: "EASY",
             tagId: tagMap["SORTING"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT name, salary FROM employees ORDER BY salary DESC",
             expectedOutput: [
@@ -207,7 +226,7 @@ async function main() {
             description: "Get a unique list of all department names.",
             difficulty: "EASY",
             tagId: tagMap["SELECT"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT DISTINCT department FROM employees",
             expectedOutput: [
@@ -221,7 +240,7 @@ async function main() {
             description: "How many employees are there in total?",
             difficulty: "EASY",
             tagId: tagMap["AGGREGATION"],
-            initSql: empInitSql,
+            datasetId: employeeDataset.id,
             dbTableName: "employees",
             solutionSql: "SELECT COUNT(*) AS total FROM employees",
             expectedOutput: [{ total: 7 }]

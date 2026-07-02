@@ -32,29 +32,21 @@ export default function Register() {
     }
   };
 
+  const inputClass =
+    'w-full bg-[var(--color-bg-content)] border-[1.5px] border-[var(--color-border)] rounded-[var(--radius-sm)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)] transition-[border-color,box-shadow] duration-150 focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_var(--color-accent-light)]';
+  const labelClass =
+    'block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5 tracking-[0.01em]';
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg-app)', padding: '24px 16px',
-    }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-app)] px-4 py-6">
+      <div className="w-full max-w-[400px]">
 
         {/* Card */}
-        <div style={{
-          background: 'var(--bg-content)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-md)',
-          padding: '40px 36px 36px',
-        }}>
+        <div className="bg-[var(--color-bg-content)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[0_4px_12px_rgba(17,24,39,0.08)] px-9 pt-10 pb-9">
+
           {/* Logo mark */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: 10,
-              background: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
+          <div className="flex justify-center mb-7">
+            <div className="w-[42px] h-[42px] rounded-[10px] bg-[var(--color-accent)] flex items-center justify-center">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
               </svg>
@@ -62,80 +54,82 @@ export default function Register() {
           </div>
 
           {/* Heading */}
-          <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <h1 style={{
-              fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)',
-              letterSpacing: '-0.01em', marginBottom: 6,
-            }}>
+          <div className="text-center mb-7">
+            <h1 className="text-[1.35rem] font-bold text-[var(--color-text-primary)] tracking-tight mb-1.5">
               Join Lurner
             </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+            <p className="text-[var(--color-text-muted)] text-sm">
               Start your journey to SQL mastery today.
             </p>
           </div>
 
           {/* Error / success alerts */}
           {error && (
-            <div style={{
-              marginBottom: 16, padding: '10px 14px',
-              background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
-              borderRadius: 'var(--radius-sm)', color: 'var(--danger)',
-              fontSize: '0.84rem', fontWeight: 500,
-            }}>
+            <div className="mb-4 px-3.5 py-2.5 bg-[var(--color-danger-bg)] border border-[var(--color-danger-border)] rounded-[var(--radius-sm)] text-[var(--color-danger)] text-[0.84rem] font-medium">
               {error}
             </div>
           )}
           {success && (
-            <div style={{
-              marginBottom: 16, padding: '10px 14px',
-              background: 'var(--success-bg)', border: '1px solid var(--success-border)',
-              borderRadius: 'var(--radius-sm)', color: 'var(--success)',
-              fontSize: '0.84rem', fontWeight: 500,
-            }}>
+            <div className="mb-4 px-3.5 py-2.5 bg-[var(--color-success-bg)] border border-[var(--color-success-border)] rounded-[var(--radius-sm)] text-[var(--color-success)] text-[0.84rem] font-medium">
               Account created! Redirecting to login…
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 14 }}>
-              <label className="input-label">Username</label>
+            <div className="mb-3.5">
+              <label className={labelClass}>Username</label>
               <input
-                id="reg-username" type="text" required className="input"
-                placeholder="johndoe" value={username}
+                id="reg-username"
+                type="text"
+                required
+                placeholder="johndoe"
+                value={username}
                 onChange={e => setUsername(e.target.value)}
+                className={inputClass}
               />
             </div>
-            <div style={{ marginBottom: 14 }}>
-              <label className="input-label">Email address</label>
+            <div className="mb-3.5">
+              <label className={labelClass}>Email address</label>
               <input
-                id="reg-email" type="email" required className="input"
-                placeholder="name@example.com" value={email}
+                id="reg-email"
+                type="email"
+                required
+                placeholder="name@example.com"
+                value={email}
                 onChange={e => setEmail(e.target.value)}
+                className={inputClass}
               />
             </div>
-            <div style={{ marginBottom: 24 }}>
-              <label className="input-label">Password</label>
+            <div className="mb-6">
+              <label className={labelClass}>Password</label>
               <input
-                id="reg-password" type="password" required className="input"
-                placeholder="••••••••" value={password}
+                id="reg-password"
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
                 onChange={e => setPassword(e.target.value)}
+                className={inputClass}
               />
             </div>
             <button
-              id="reg-submit" type="submit" disabled={loading || success}
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '11px 20px', fontSize: '0.875rem' }}
+              id="reg-submit"
+              type="submit"
+              disabled={loading || success}
+              className="w-full flex items-center justify-center gap-1.5 px-5 py-[11px] bg-[var(--color-accent)] text-white text-sm font-semibold rounded-[var(--radius-sm)] cursor-pointer transition-all duration-150 hover:bg-[var(--color-accent-hover)] active:scale-[0.99] disabled:opacity-45 disabled:cursor-not-allowed"
             >
-              {loading ? <><div className="spinner" /> Creating account…</> : 'Create Account'}
+              {loading ? (
+                <>
+                  <div className="w-[15px] h-[15px] border-2 border-white/35 border-t-white rounded-full animate-spin" />
+                  Creating account…
+                </>
+              ) : 'Create Account'}
             </button>
           </form>
 
-          <p style={{
-            textAlign: 'center', marginTop: 22, fontSize: '0.84rem',
-            color: 'var(--text-secondary)',
-          }}>
+          <p className="text-center mt-5 text-[0.84rem] text-[var(--color-text-secondary)]">
             Already have an account?{' '}
-            <Link to="/login" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+            <Link to="/login" className="text-[var(--color-accent)] font-semibold no-underline hover:underline">
               Sign in instead
             </Link>
           </p>
