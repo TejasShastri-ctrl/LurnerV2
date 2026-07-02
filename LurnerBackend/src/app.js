@@ -21,6 +21,11 @@ app.use("/api/social", socialRoutes);
 app.use("/api/contests", contestRoutes);
 app.use("/api/analytics", analyticsRoutes);
 
+app.use((err, req, res, next) => {
+    console.log("ERROR : ", err?.stack || err);
+    res.status(500).json({error : err.message || "Uncatched ISE"});
+})
+
 
 // Legacy/Root endpoint
 app.get("/", (req, res) => {

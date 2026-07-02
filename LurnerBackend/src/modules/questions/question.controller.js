@@ -195,3 +195,33 @@ export const deleteDataset = async (req, res) => {
     }
 };
 
+export const createTag = async (req, res) => {
+    const { name } = req.body;
+    try {
+        const tag = await questionService.createTag(name);
+        res.status(201).json(tag);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};
+
+export const updateTag = async (req, res) => {
+    const { name } = req.body;
+    try {
+        const tag = await questionService.updateTag(req.params.id, name);
+        res.json(tag);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};
+
+export const deleteTag = async (req, res) => {
+    try {
+        await questionService.deleteTag(req.params.id);
+        res.json({ message: "Tag deleted successfully" });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};
+
+

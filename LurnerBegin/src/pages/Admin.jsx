@@ -12,7 +12,10 @@ import {
     fetchAllDatasets,
     createDataset,
     updateDataset,
-    deleteDataset
+    deleteDataset,
+    createTag,
+    updateTag,
+    deleteTag
 } from '../api/api';
 import { Plus, Edit2, Trash2, X, Save, Database, Code, Play, RefreshCw, Calendar, Trophy, Trash, FileText } from 'lucide-react';
 
@@ -178,6 +181,24 @@ const Admin = () => {
             alert('Output generated successfully!');
         } catch (e) { console.error(e); alert('Error generating output: ' + e.message); }
         finally { setIsGenerating(false); }
+    };
+
+    // --- TAG HANDLERS ---
+    const handleCreateTag = async () => {
+        const name = prompt('Enter the name of the new Tag (e.g. JOIN, SUBQUERY):');
+        if (!name || name.trim() === '') return;
+        try {
+            const newTag = await createTag(name.trim(), token);
+            alert('Tag created successfully!');
+            // Refresh tags
+            const tagsData = await fetchAllTags(token);
+            setTags(tagsData);
+            // Set selection
+            setFormData(prev => ({ ...prev, tagId: newTag.id }));
+        } catch (e) {
+            console.error(e);
+            alert('Error creating tag: ' + e.message);
+        }
     };
 
     // --- DATASET HANDLERS ---
@@ -579,7 +600,16 @@ const Admin = () => {
                                     </select>
                                 </div>
                                 <div className="flex flex-col gap-2 flex-1">
-                                    <label className={labelBase}>Tag</label>
+                                    <div className="flex justify-between items-center">
+                                        <label className={labelBase}>Tag</label>
+                                        <button 
+                                            type="button" 
+                                            onClick={handleCreateTag}
+                                            className="text-xs bg-blue-600/20 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded hover:bg-blue-600/30 transition-colors cursor-pointer flex items-center gap-1"
+                                        >
+                                            <Plus size={12} /> New Tag
+                                        </button>
+                                    </div>
                                     <select className={fieldBase} name="tagId" value={formData.tagId} onChange={handleInputChange}>
                                         {tags.map(tag => (
                                             <option key={tag.id} value={tag.id}>{tag.name}</option>

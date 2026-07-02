@@ -9,6 +9,9 @@ const router = express.Router();
 router.post("/execute", authMiddleware, submissionLimiter, questionController.executeSqlHandler);
 router.get("/", authMiddleware, questionController.listQuestions);
 router.get("/tags", authMiddleware, questionController.getTags);
+router.post("/tags", authMiddleware, questionController.createTag);
+router.put("/tags/:id", authMiddleware, questionController.updateTag);
+router.delete("/tags/:id", authMiddleware, questionController.deleteTag);
 
 // Dataset CRUD (must be placed before parameterized /:id route)
 router.get("/datasets", authMiddleware, questionController.listDatasets);

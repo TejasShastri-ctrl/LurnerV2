@@ -427,3 +427,49 @@ export const deleteDataset = async (id, token) => {
     }
     return resdata;
 }
+
+export const createTag = async (name, token) => {
+    const res = await fetch(`${BASE_URL}/questions/tags`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name })
+    });
+    const resdata = await res.json();
+    if (!res.ok) {
+        throw new Error(resdata.error || "Failed to create tag");
+    }
+    return resdata;
+}
+
+export const updateTag = async (id, name, token) => {
+    const res = await fetch(`${BASE_URL}/questions/tags/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name })
+    });
+    const resdata = await res.json();
+    if (!res.ok) {
+        throw new Error(resdata.error || "Failed to update tag");
+    }
+    return resdata;
+}
+
+export const deleteTag = async (id, token) => {
+    const res = await fetch(`${BASE_URL}/questions/tags/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+    const resdata = await res.json();
+    if (!res.ok) {
+        throw new Error(resdata.error || "Failed to delete tag");
+    }
+    return resdata;
+}

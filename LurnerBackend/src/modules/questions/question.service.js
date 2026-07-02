@@ -105,4 +105,24 @@ export const deleteDataset = async (id) => {
         where: { id: parseInt(id) }
     });
 };
+
+export const createTag = async (name) => {
+    return prisma.tag.create({
+        data: { name }
+    });
+};
+
+export const updateTag = async (id, name) => {
+    return prisma.tag.update({
+        where: { id: parseInt(id) },
+        data: { name }
+    });
+};
+
+export const deleteTag = async (id) => {
+    return prisma.tag.delete({
+        where: { id: parseInt(id) }
+    });
+};
+
 
