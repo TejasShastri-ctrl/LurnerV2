@@ -1,30 +1,34 @@
 import { createContext, useState, useContext, useEffect } from 'react';
-import { login as apiLogin, register as apiRegister } from '../api/api';
+import { login as apiLogin, register as apiRegister, fetchMe, logoutUser } from '../api/api';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('lurner_token'));
+    const [token, setToken] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Simple token-based session restoration
-        const storedUser = localStorage.getItem('lurner_user');
-        if (storedUser && token) {
-            setUser(JSON.parse(storedUser));
-        }
-        console.log("User found during session restoration(localstorage fetch lmao) : ", storedUser);
-        setLoading(false);
-    }, [token]);
+        // Handshake with backend to restore session via HttpOnly cookie
+        fetchMe()
+            .then(profile => {
+                setUser(profile);
+                setToken('session_active');
+            })
+            .catch(() => {
+                setUser(null);
+                setToken(null);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    }, []);
 
     const login = async (email, password) => {
         const data = await apiLogin(email, password);
-        if (data.token) {
-            setToken(data.token);
+        if (data.user) {
             setUser(data.user);
-            localStorage.setItem('lurner_token', data.token);
-            localStorage.setItem('lurner_user', JSON.stringify(data.user));
+            setToken('session_active');
             return { success: true };
         }
         return { success: false, error: data.error };
@@ -38,15 +42,18 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: data.error };
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await logoutUser();
+        } catch (e) {
+            console.error("Logout API call failed:", e);
+        }
         setToken(null);
         setUser(null);
-        localStorage.removeItem('lurner_token');
-        localStorage.removeItem('lurner_user');
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, register, logout, loading, isAuthenticated: !!token }}>
+        <AuthContext.Provider value={{ user, token, login, register, logout, loading, isAuthenticated: !!user }}>
             {children}
         </AuthContext.Provider>
     );

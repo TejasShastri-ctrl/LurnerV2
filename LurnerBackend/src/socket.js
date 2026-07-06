@@ -5,17 +5,36 @@ import * as socialService from "./modules/social/social.service.js";
 let io;
 const onlineUsers = new Map(); // userId -> socketId
 
+const parseCookies = (cookieString) => {
+    if (!cookieString) return {};
+    return cookieString.split(';').reduce((acc, cookie) => {
+        const [key, value] = cookie.split('=').map(c => c.trim());
+        if (key && value) {
+            acc[key] = decodeURIComponent(value);
+        }
+        return acc;
+    }, {});
+};
+
 export const initSocket = (server) => {
     io = new Server(server, {
         cors: {
-            origin: "*", // Adjust in production
+            origin: "http://localhost:5173", // Keep CORS strict matching app.js
+            credentials: true,
             methods: ["GET", "POST"]
         }
     });
 
     // Authentication Middleware for Sockets
     io.use((socket, next) => {
-        const token = socket.handshake.auth.token;
+        let token = socket.handshake.auth?.token;
+
+        // Try to read token from cookies sent in handshake headers
+        if (!token && socket.handshake.headers.cookie) {
+            const cookies = parseCookies(socket.handshake.headers.cookie);
+            token = cookies.access_token;
+        }
+
         if (!token) {
             return next(new Error("Authentication error: No token provided"));
         }
@@ -23,7 +42,7 @@ export const initSocket = (server) => {
         try {
             const decoded = verifyToken(token);
             socket.userId = decoded.userId;
-            socket.userName = decoded.name; // Assuming name is in token
+            socket.userName = decoded.email || "";
             next();
         } catch (err) {
             next(new Error("Authentication error: Invalid token"));

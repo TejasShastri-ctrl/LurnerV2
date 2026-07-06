@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import questionRoutes from "./modules/questions/question.routes.js";
 import submissionRoutes from "./modules/submissions/submission.routes.js";
 import authRoutes from "./modules/auth/auth.routes.js";
@@ -10,8 +11,12 @@ import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 const app = express();
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+    origin: "http://localhost:5173",
+    credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 // API Routes
 app.use("/api/auth", authRoutes);
