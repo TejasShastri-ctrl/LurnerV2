@@ -7,21 +7,12 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import AppLayout from './components/Layout/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import GuestRoute from './components/GuestRoute'
 import { AuthProvider } from './context/AuthContext'
 import { SocketProvider } from './context/SocketContext'
 import Admin from './pages/Admin'
 import Contests from './pages/Contests'
 import ContestWorkspace from './pages/ContestWorkspace'
-
-/**
- * GuestRoute — Redirects already-authenticated users away from login/register.
- */
-function GuestRoute({ children }) {
-  // We can't use useAuth here (not inside provider yet), so this is handled
-  // inside AuthProvider via the layout's isAuthenticated check.
-  // The redirect after login is handled in Login.jsx / Register.jsx.
-  return children;
-}
 
 function App() {
   return (
@@ -31,8 +22,8 @@ function App() {
           <AppLayout>
             <Routes>
               {/* Public auth routes */}
-              <Route path="/login"    element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              <Route path="/login"    element={<GuestRoute><Login /></GuestRoute>} />
+              <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
 
               {/* Protected routes */}
               <Route path="/" element={
