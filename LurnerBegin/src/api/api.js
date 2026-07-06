@@ -1,5 +1,25 @@
 const BASE_URL = 'http://localhost:3000/api';
 
+// Intercept all fetch requests globally to include cookies (credentials) for cross-origin localhost queries
+const originalFetch = window.fetch;
+window.fetch = function (input, init = {}) {
+    init.credentials = 'include';
+    return originalFetch(input, init);
+};
+
+export const fetchMe = async () => {
+    const res = await fetch(`${BASE_URL}/auth/me`);
+    if (!res.ok) throw new Error("Not logged in");
+    return await res.json();
+};
+
+export const logoutUser = async () => {
+    const res = await fetch(`${BASE_URL}/auth/logout`, {
+        method: 'POST'
+    });
+    return await res.json();
+};
+
 // Questions
 export const fetchAllQuestions = async (token) => {
     try {
