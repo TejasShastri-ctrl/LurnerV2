@@ -1,14 +1,15 @@
 import { DatabaseSync } from "node:sqlite";
+import { parentPort } from "node:worker_threads";
 
 /**
- * SQL Worker Thread (Piscina Version)
+ * SQL Worker Thread
  * Uses Node.js 22+ built-in sqlite driver for maximum stability in ESM.
  */
 
 let cachedDb = null;
 let cachedInitSql = null;
 
-export default function ({ initSql, userCode }) {
+export default function execute({ initSql, userCode }) {
     try {
         if (!cachedDb || cachedInitSql !== initSql) {
             if (cachedDb) {
@@ -58,3 +59,11 @@ export default function ({ initSql, userCode }) {
         }
     }
 }
+
+if (parentPort) {
+    parentPort.on("message", (task) => {
+        const result = execute(task);
+        parentPort.postMessage(result);
+    });
+}
+
