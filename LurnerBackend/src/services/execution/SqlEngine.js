@@ -1,4 +1,4 @@
-import { Worker } from 'node:worker_threads';
+import { fork } from 'node:child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
@@ -6,79 +6,69 @@ import os from 'os';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const workerPath = path.join(__dirname, 'SqlWorker.mjs');
 
-class SafeWorkerPool {
+class SafeProcessPool {
     constructor(workerPath, size) {
         this.workerPath = workerPath;
         this.size = size;
         this.pool = [];
         this.queue = [];
         for (let i = 0; i < size; i++) {
-            this.pool.push(this.createWorker());
+            this.pool.push(this.createProcess());
         }
     }
 
-    createWorker() {
-        const worker = new Worker(this.workerPath);
-        worker.isBusy = false;
-        worker.activeReject = null;
+    createProcess() {
+        // Spawn the child process with IPC enabled and standard IO inherited
+        const child = fork(workerPath, [], { stdio: ['inherit', 'inherit', 'inherit', 'ipc'] });
+        child.isBusy = false;
+        child.activeReject = null;
 
-        worker.on('exit', (code) => {
-            // If the worker had a pending task reject function, reject it (crashed or terminated)
-            if (worker.activeReject) {
-                worker.activeReject(new Error("Query Timed Out (Max 500ms). Your query is too heavy for the sandbox!"));
+        child.on('exit', (code, signal) => {
+            // If the child was busy and had an active reject function, it timed out or crashed
+            if (child.activeReject) {
+                child.activeReject(new Error("Query Timed Out (Max 500ms). Your query is too heavy for the sandbox!"));
             }
-            
-            // Remove the terminated worker and replace it with a new one
-            this.pool = this.pool.filter(w => w !== worker);
-            this.pool.push(this.createWorker());
+
+            // Remove the terminated process from the pool
+            this.pool = this.pool.filter(p => p !== child);
+            // Replace with a new pre-warmed process
+            this.pool.push(this.createProcess());
             this.processQueue();
         });
 
-        worker.on('error', (err) => {
-            console.error("Worker error encountered:", err);
+        child.on('error', (err) => {
+            console.error("Child Process error:", err);
         });
 
-        return worker;
+        return child;
     }
 
     processQueue() {
         if (this.queue.length === 0) return;
-        const availableWorker = this.pool.find(w => !w.isBusy);
-        if (!availableWorker) return;
+        const availableProcess = this.pool.find(p => !p.isBusy);
+        if (!availableProcess) return;
 
         const { task, resolve, reject, timeoutMs } = this.queue.shift();
-        availableWorker.isBusy = true;
-        availableWorker.activeReject = reject;
+        availableProcess.isBusy = true;
+        availableProcess.activeReject = reject;
 
         let timeout = setTimeout(() => {
-            availableWorker.terminate();
+            // Kill the process immediately with SIGKILL
+            availableProcess.kill('SIGKILL');
         }, timeoutMs);
 
         const onMessage = (result) => {
             clearTimeout(timeout);
-            availableWorker.off('message', onMessage);
-            availableWorker.off('error', onError);
-            availableWorker.isBusy = false;
-            availableWorker.activeReject = null;
-            
+            availableProcess.off('message', onMessage);
+            availableProcess.isBusy = false;
+            availableProcess.activeReject = null;
+
             resolve(result);
             this.processQueue();
         };
 
-        const onError = (err) => {
-            clearTimeout(timeout);
-            availableWorker.off('message', onMessage);
-            availableWorker.off('error', onError);
-            availableWorker.isBusy = false;
-            availableWorker.activeReject = null;
-            
-            reject(err);
-            this.processQueue();
-        };
-
-        availableWorker.on('message', onMessage);
-        availableWorker.on('error', onError);
-        availableWorker.postMessage(task);
+        availableProcess.on('message', onMessage);
+        availableProcess.send(task);
     }
 
     run(task, timeoutMs = 500) {
@@ -89,9 +79,9 @@ class SafeWorkerPool {
     }
 }
 
-// Instantiate pool with size matching CPU core count (minimum 2)
+// Instantiate pool size matching CPU core count (minimum 2)
 const poolSize = Math.max(2, os.cpus().length);
-const pool = new SafeWorkerPool(workerPath, poolSize);
+const pool = new SafeProcessPool(workerPath, poolSize);
 
 export async function executeSql(initSql, userCode) {
     const startTime = Date.now();
@@ -112,12 +102,12 @@ export async function executeSql(initSql, userCode) {
         }
     } catch (err) {
         const executionTimeMs = Date.now() - startTime;
-        
-        // Re-throw our structured error from inside the try block
+
+        // Re-throw structured errors from inside the try block
         if (err && err.error !== undefined) {
             throw err;
         }
-        
+
         throw {
             error: err.message || "Query Timed Out (Max 500ms). Your query is too heavy for the sandbox!",
             executionTimeMs

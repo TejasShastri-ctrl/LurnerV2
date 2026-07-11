@@ -1,8 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
-import { parentPort } from "node:worker_threads";
 
 /**
- * SQL Worker Thread
+ * SQL Worker Process
  * Uses Node.js 22+ built-in sqlite driver for maximum stability in ESM.
  */
 
@@ -60,10 +59,11 @@ export default function execute({ initSql, userCode }) {
     }
 }
 
-if (parentPort) {
-    parentPort.on("message", (task) => {
+if (process.send) {
+    process.on("message", (task) => {
         const result = execute(task);
-        parentPort.postMessage(result);
+        process.send(result);
     });
 }
+
 
