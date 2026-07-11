@@ -76,18 +76,7 @@ A common point of confusion is whether libraries like `pg` or `mysql2` can run l
 3. **MySQL Limitations**:
    - MySQL does not have a mature, production-ready WASM compilation or JS-native engine. To run MySQL query validation, we must connect to a running MySQL server (`mysqld`) and use schema-level isolation or transaction-rollback techniques to prevent collisions.
 
-<<<<<<< Updated upstream
 So, worrying about race conditions and during server side execution is not an issue for postgres and sqlite because of their WASM providers but not for MySQL
-=======
-So, worrying about race conditions and during server side execution is not an issue for postgres and sqlite because of their WASM providers but not for MySQL
-
-
-
-
-
-
-
-
 
 Better explanation of the clogging problem, why the abortController cannot kill the process and free the worker:
 Here is the exact journey of a query in the codebase:
@@ -159,4 +148,3 @@ what is something that one does this huh?
    - **Why and How**: By isolating query execution in separate OS processes instead of threads, the parent process can enforce a strict 500ms execution timeout and call `child.kill('SIGKILL')`. The operating system instantly terminates the process and reclaims the CPU core, regardless of what the native SQLite C++ code is executing.
    - **Pre-warmed Process Management**: To eliminate process startup latency (~30-50ms) for normal runs, the pool maintains pre-warmed idle processes. When a query is terminated, a replacement process is spun up asynchronously in the background.
    - **Result**: Sub-millisecond execution times under normal conditions, combined with absolute protection against CPU starvation attacks.
->>>>>>> Stashed changes
