@@ -19,7 +19,7 @@ const parseCookies = (cookieString) => {
 export const initSocket = (server) => {
     io = new Server(server, {
         cors: {
-            origin: "http://localhost:5173", // Keep CORS strict matching app.js
+            origin: "http://localhost:5173",
             credentials: true,
             methods: ["GET", "POST"]
         }
@@ -29,7 +29,6 @@ export const initSocket = (server) => {
     io.use((socket, next) => {
         let token = socket.handshake.auth?.token;
 
-        // Try to read token from cookies sent in handshake headers
         if (!token && socket.handshake.headers.cookie) {
             const cookies = parseCookies(socket.handshake.headers.cookie);
             token = cookies.access_token;
@@ -56,51 +55,59 @@ export const initSocket = (server) => {
         // Join a private room for targeted notifications
         socket.join(`user_${userId}`);
 
-        // 1. Mark as online
+        // ── Social: online presence ──────────────────────────────────────────
         onlineUsers.set(userId, socket.id);
 
-        // 2. Notify followers that this user is online
         try {
             const followers = await socialService.getFollowers(userId);
             followers.forEach(f => {
                 const followerSocketId = onlineUsers.get(f.followerId);
                 if (followerSocketId) {
-                    io.to(followerSocketId).emit("friend_status", {
-                        userId: userId,
-                        status: "online"
-                    });
+                    io.to(followerSocketId).emit("friend_status", { userId, status: "online" });
                 }
             });
         } catch (e) {
             console.error("Error notifying followers:", e);
         }
 
-        // 3. Send current online status of all followed users back to the connected user
         try {
             const following = await socialService.getFollowing(userId);
             const onlineFollowing = following
                 .filter(f => onlineUsers.has(f.followingId))
                 .map(f => f.followingId);
-            
             socket.emit("initial_online_friends", onlineFollowing);
         } catch (e) {
             console.error("Error fetching following status:", e);
         }
 
+        // ── Contests: real-time room management ──────────────────────────────
+        /**
+         * Client emits this after joining/loading a contest workspace.
+         * Puts the socket in a shared room so score_update broadcasts reach it.
+         */
+        socket.on("join_contest_room", (contestId) => {
+            if (!contestId) return;
+            const room = `contest_${contestId}`;
+            socket.join(room);
+            console.log(`🏆 User ${userId} joined contest room: ${room}`);
+        });
+
+        socket.on("leave_contest_room", (contestId) => {
+            if (!contestId) return;
+            socket.leave(`contest_${contestId}`);
+        });
+
+        // ── Disconnect ───────────────────────────────────────────────────────
         socket.on("disconnect", async () => {
             console.log(`🔌 User disconnected: ${userId}`);
             onlineUsers.delete(userId);
 
-            // Notify followers that this user is offline
             try {
                 const followers = await socialService.getFollowers(userId);
                 followers.forEach(f => {
                     const followerSocketId = onlineUsers.get(f.followerId);
                     if (followerSocketId) {
-                        io.to(followerSocketId).emit("friend_status", {
-                            userId: userId,
-                            status: "offline"
-                        });
+                        io.to(followerSocketId).emit("friend_status", { userId, status: "offline" });
                     }
                 });
             } catch (e) {
@@ -117,4 +124,16 @@ export const getIO = () => {
         throw new Error("Socket.io not initialized!");
     }
     return io;
+};
+
+/**
+ * Broadcast an event to all sockets in a contest room.
+ * Used by the contest controller to push leaderboard updates.
+ */
+export const emitToContestRoom = (contestId, event, payload) => {
+    try {
+        getIO().to(`contest_${contestId}`).emit(event, payload);
+    } catch (e) {
+        console.error(`emitToContestRoom failed for contest ${contestId}:`, e.message);
+    }
 };

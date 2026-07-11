@@ -3,8 +3,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 /**
  * Custom hook to enforce Timed Contest rules.
  * Monitors Fullscreen exits and Visibility (tab switching) API infractions.
+ * @param {function} onServerReport - Optional callback(type) fired on each violation so the
+ *   caller can forward the infraction to the server without this hook knowing about API concerns.
  */
-export default function useAntiCheat({ isActive, maxInfractions = 3, onViolation, onLimitExceeded }) {
+export default function useAntiCheat({ isActive, maxInfractions = 3, onViolation, onLimitExceeded, onServerReport }) {
     const [infractions, setInfractions] = useState(0);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const isActivelyEnforcing = useRef(isActive);
@@ -12,6 +14,7 @@ export default function useAntiCheat({ isActive, maxInfractions = 3, onViolation
     // Hold refs to avoid re-binding event listeners when handler functions change
     const onViolationRef = useRef(onViolation);
     const onLimitExceededRef = useRef(onLimitExceeded);
+    const onServerReportRef = useRef(onServerReport);
     
     useEffect(() => {
         isActivelyEnforcing.current = isActive;
@@ -20,10 +23,16 @@ export default function useAntiCheat({ isActive, maxInfractions = 3, onViolation
     useEffect(() => {
         onViolationRef.current = onViolation;
         onLimitExceededRef.current = onLimitExceeded;
-    }, [onViolation, onLimitExceeded]);
+        onServerReportRef.current = onServerReport;
+    }, [onViolation, onLimitExceeded, onServerReport]);
 
     const incrementInfractions = useCallback((type, message) => {
         if (!isActivelyEnforcing.current) return;
+
+        // Fire server-report callback first (non-blocking)
+        if (onServerReportRef.current) {
+            onServerReportRef.current(type);
+        }
         
         setInfractions(prev => {
             const next = prev + 1;

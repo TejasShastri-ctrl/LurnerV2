@@ -76,4 +76,87 @@ A common point of confusion is whether libraries like `pg` or `mysql2` can run l
 3. **MySQL Limitations**:
    - MySQL does not have a mature, production-ready WASM compilation or JS-native engine. To run MySQL query validation, we must connect to a running MySQL server (`mysqld`) and use schema-level isolation or transaction-rollback techniques to prevent collisions.
 
+<<<<<<< Updated upstream
 So, worrying about race conditions and during server side execution is not an issue for postgres and sqlite because of their WASM providers but not for MySQL
+=======
+So, worrying about race conditions and during server side execution is not an issue for postgres and sqlite because of their WASM providers but not for MySQL
+
+
+
+
+
+
+
+
+
+Better explanation of the clogging problem, why the abortController cannot kill the process and free the worker:
+Here is the exact journey of a query in the codebase:
+
+1. The Main Thread initiates the query
+In 
+
+LurnerBackend/src/services/execution/SqlEngine.js
+:
+
+javascript
+// LINE 21: An AbortController is created on the Main Thread
+const ac = new AbortController();
+// LINE 23: A JavaScript timer is set on the Main Thread for 500ms
+const timeout = setTimeout(() => {
+    ac.abort(new Error("Query Timed Out..."));
+}, 500);
+// LINE 28: Piscina sends the query to a Worker Thread
+const response = await pool.run(
+    { initSql, userCode },
+    { signal: ac.signal } // <-- The signal is passed to Piscina
+);
+2. The Worker Thread executes the query
+The task lands in 
+
+LurnerBackend/src/services/execution/SqlWorker.mjs
+:
+
+javascript
+// LINE 33: SQLite prepares and executes the query
+const stmt = cachedDb.prepare(userCode);
+// LINE 37: The query starts running
+if (isSelect) {
+    result = stmt.all();  // <-- DANGER: The thread enters native C++ execution here
+}
+What happens when a query blocks (e.g., an infinite loop)
+Step 1: The Event Loop is Frozen in the Worker
+When stmt.all() runs, the worker thread leaves JavaScript execution and enters SQLite's compiled native C++ engine loop.
+
+Because DatabaseSync is a synchronous call, the thread's execution is blocked.
+While the query runs, the worker thread's CPU core is at 100% capacity. The JavaScript event loop inside this worker is completely frozen; it cannot check messages, process events, or run any JavaScript timers.
+Step 2: The AbortController fails to stop it
+After 500ms, the timer on the Main Thread fires:
+
+The Main Thread calls ac.abort().
+Piscina's main-thread manager catches the abort event and rejects the promise returned to the client (sending a "Query Timed Out" response).
+But the Worker Thread is still running SQLite's C++ code.
+Why doesn't the worker stop? JavaScript threads are non-preemptive. You cannot force a running JavaScript thread to stop executing a line of code from the outside. The AbortSignal is just a JavaScript object. SQLite's native C++ engine (stmt.all()) has no knowledge of it and doesn't check it. The worker thread will continue executing that blocked SQL query forever, keeping that CPU core locked at 100% utilization.
+
+Eventually, if a few users submit heavy queries, every worker thread in Piscina gets locked at 100% CPU, and no more queries can be processed.
+
+
+SQLite has a default maximum recursion limit of 1000 for recursive CTEs, causing them to exit early). This will properly test the 500ms force-kill timeout.
+
+
+what is something that one does this huh?
+
+---
+
+## Final Decision: Custom Child-Process Pool (The Sandbox Overhaul)
+
+### The Journey and Discovery
+1. **Optimization with Savepoint Caching**:
+   We initially optimized the `initSql` setup overhead by caching the `DatabaseSync` connection per worker and isolating query runs using SQLite transaction `SAVEPOINT`s (rolling back changes in the `finally` block). This successfully dropped consecutive query run times from 10-50ms+ down to under 1ms.
+2. **The Thread-Clogging Vulnerability**:
+   We discovered a critical Node.js limitation: `worker.terminate()` cannot preemptively interrupt native C++ code execution (like SQLite's synchronous `stmt.all()` loop). If a student runs an infinite loop or a massive cross-join, the worker thread locks up at 100% CPU forever, eventually starving the Piscina worker pool and clogging the execution queue for all users.
+3. **The Solution Choice**:
+   We chose to implement a custom **`SafeProcessPool`** using Node's native `child_process.fork()`:
+   - **Why and How**: By isolating query execution in separate OS processes instead of threads, the parent process can enforce a strict 500ms execution timeout and call `child.kill('SIGKILL')`. The operating system instantly terminates the process and reclaims the CPU core, regardless of what the native SQLite C++ code is executing.
+   - **Pre-warmed Process Management**: To eliminate process startup latency (~30-50ms) for normal runs, the pool maintains pre-warmed idle processes. When a query is terminated, a replacement process is spun up asynchronously in the background.
+   - **Result**: Sub-millisecond execution times under normal conditions, combined with absolute protection against CPU starvation attacks.
+>>>>>>> Stashed changes

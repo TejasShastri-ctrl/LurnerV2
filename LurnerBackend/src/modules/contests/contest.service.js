@@ -1,7 +1,8 @@
 import prisma from "../../config/prisma.js";
 
 /**
- * Create a new contest with questions
+ * Create a new contest with questions.
+ * Accepts pre-computed tablePreviews per question to avoid re-running SQL on every fetch.
  */
 export const createContest = async (data) => {
     const { title, description, startTime, endTime, questions } = data;
@@ -21,7 +22,8 @@ export const createContest = async (data) => {
                     datasetId: parseInt(q.datasetId),
                     dbTableName: q.dbTableName,
                     solutionSql: q.solutionSql,
-                    expectedOutput: q.expectedOutput
+                    expectedOutput: q.expectedOutput,
+                    tablePreviews: q.tablePreviews || null
                 }))
             }
         },
@@ -44,7 +46,7 @@ export const joinContest = async (userId, contestId) => {
 };
 
 /**
- * Get contest details
+ * Get contest details (questions without solutionSql, participants, and user's submissions)
  */
 export const getContestById = async (id) => {
     return prisma.contest.findUnique({
@@ -58,6 +60,7 @@ export const getContestById = async (id) => {
                     description: true,
                     difficulty: true,
                     dbTableName: true,
+                    tablePreviews: true,
                     dataset: {
                         select: {
                             id: true,
@@ -79,6 +82,14 @@ export const getContestById = async (id) => {
                 orderBy: {
                     score: "desc"
                 }
+            },
+            contestSubmissions: {
+                select: {
+                    userId: true,
+                    contestQuestionId: true,
+                    status: true,
+                    createdAt: true
+                }
             }
         }
     });
@@ -96,6 +107,44 @@ export const getAllContests = async () => {
             }
         }
     });
+};
+
+/**
+ * Get leaderboard for a contest — participants ordered by score desc.
+ */
+export const getLeaderboard = async (contestId) => {
+    const participants = await prisma.contestParticipant.findMany({
+        where: { contestId: parseInt(contestId) },
+        include: {
+            user: { select: { id: true, name: true } }
+        },
+        orderBy: { score: "desc" }
+    });
+
+    // Annotate with solved question count per participant
+    const solvedCounts = await prisma.contestSubmission.groupBy({
+        by: ["userId"],
+        where: {
+            contestId: parseInt(contestId),
+            status: "SUCCESS"
+        },
+        _count: { id: true }
+    });
+
+    const solvedMap = solvedCounts.reduce((acc, s) => {
+        acc[s.userId] = s._count.id;
+        return acc;
+    }, {});
+
+    return participants.map((p, idx) => ({
+        rank: idx + 1,
+        userId: p.userId,
+        name: p.user.name,
+        score: p.score,
+        solved: solvedMap[p.userId] || 0,
+        isDisqualified: p.isDisqualified,
+        finishedAt: p.finishedAt
+    }));
 };
 
 /**
@@ -118,10 +167,10 @@ export const updateParticipantScore = async (userId, contestId, points) => {
 };
 
 /**
- * Check if a user is in a contest
+ * Check if a user is in a contest; returns participant record or null
  */
-export const isUserInContest = async (userId, contestId) => {
-    const participant = await prisma.contestParticipant.findUnique({
+export const getParticipant = async (userId, contestId) => {
+    return prisma.contestParticipant.findUnique({
         where: {
             userId_contestId: {
                 userId,
@@ -129,7 +178,11 @@ export const isUserInContest = async (userId, contestId) => {
             }
         }
     });
-    return !!participant;
+};
+
+export const isUserInContest = async (userId, contestId) => {
+    const p = await getParticipant(userId, parseInt(contestId));
+    return !!p;
 };
 
 /**
@@ -139,6 +192,20 @@ export const getContestQuestionById = async (id) => {
     return prisma.contestQuestion.findUnique({
         where: { id: parseInt(id) },
         include: { dataset: true }
+    });
+};
+
+/**
+ * Count prior wrong/error attempts for this user+question in a contest (for scoring penalty)
+ */
+export const countPriorWrongAttempts = async (userId, contestId, contestQuestionId) => {
+    return prisma.contestSubmission.count({
+        where: {
+            userId,
+            contestId: parseInt(contestId),
+            contestQuestionId: parseInt(contestQuestionId),
+            status: { in: ["FAIL", "ERROR"] }
+        }
     });
 };
 
@@ -161,7 +228,40 @@ export const hasUserSolvedQuestionInContest = async (userId, contestId, contestQ
  * Record a submission for a contest
  */
 export const recordContestSubmission = async (data) => {
-    return prisma.contestSubmission.create({
-        data
+    return prisma.contestSubmission.create({ data });
+};
+
+/**
+ * Log a server-side anti-cheat infraction.
+ * Returns the updated participant with new infraction count.
+ * If infractions reach the threshold, marks the participant as disqualified.
+ */
+export const logInfraction = async (userId, contestId, threshold = 3) => {
+    const updated = await prisma.contestParticipant.update({
+        where: {
+            userId_contestId: {
+                userId,
+                contestId: parseInt(contestId)
+            }
+        },
+        data: {
+            infractions: { increment: 1 }
+        }
     });
+
+    // Hard disqualify if threshold hit
+    if (updated.infractions >= threshold) {
+        await prisma.contestParticipant.update({
+            where: {
+                userId_contestId: {
+                    userId,
+                    contestId: parseInt(contestId)
+                }
+            },
+            data: { isDisqualified: true }
+        });
+        return { ...updated, isDisqualified: true };
+    }
+
+    return updated;
 };

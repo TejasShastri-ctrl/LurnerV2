@@ -1,5 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 
+
+//! Not truly a 'worker' anymore. Ts a chilld process now mounted by parent using fork
 /**
  * SQL Worker Thread (Piscina Version)
  * Uses Node.js 22+ built-in sqlite driver for maximum stability in ESM.

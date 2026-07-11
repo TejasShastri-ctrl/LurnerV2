@@ -176,17 +176,20 @@ model ContestQuestion {
   dbTableName    String?
   solutionSql    String?  @db.Text
   expectedOutput Json
+  tablePreviews  Json?    // Cached at creation time; avoids re-running SQL on every fetch
 
   contestSubmissions ContestSubmission[]
 }
 
 model ContestParticipant {
-  userId     Int
-  contestId  Int
-  score      Int      @default(0)
-  finishedAt DateTime?
-  user       User     @relation(fields: [userId], references: [id])
-  contest    Contest  @relation(fields: [contestId], references: [id])
+  userId          Int
+  contestId       Int
+  score           Int      @default(0)
+  infractions     Int      @default(0) // Server-side anti-cheat counter
+  isDisqualified  Boolean  @default(false)
+  finishedAt      DateTime?
+  user            User     @relation(fields: [userId], references: [id])
+  contest         Contest  @relation(fields: [contestId], references: [id])
 
   @@id([userId, contestId])
 }

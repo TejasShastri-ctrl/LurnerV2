@@ -367,6 +367,40 @@ export const submitContestSolution = async (contestId, contestQuestionId, sql, t
     }
 }
 
+export const fetchContestLeaderboard = async (contestId, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests/${contestId}/leaderboard`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Failed to fetch leaderboard");
+        return await res.json();
+    } catch (e) {
+        console.error("Failed to fetch leaderboard:", e);
+        return [];
+    }
+}
+
+export const reportInfraction = async (contestId, type, token) => {
+    try {
+        const res = await fetch(`${BASE_URL}/contests/${contestId}/infraction`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ type })
+        });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Failed to report infraction");
+        }
+        return await res.json(); // { infractions: N, isDisqualified: bool }
+    } catch (e) {
+        console.error("Failed to report infraction:", e);
+        throw e;
+    }
+}
+
 export const createContest = async (contestData, token) => {
     try {
         const res = await fetch(`${BASE_URL}/contests`, {

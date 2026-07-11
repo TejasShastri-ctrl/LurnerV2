@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
-import { fetchContestById, joinContest, submitContestSolution } from '../api/api';
+import { fetchContestById, joinContest, submitContestSolution, fetchContestLeaderboard, reportInfraction } from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import useLocalDraft from '../hooks/useLocalDraft';
 import useAntiCheat from '../hooks/useAntiCheat';
-import { Trophy, Clock, AlertTriangle, Play, CheckCircle, ArrowLeft, Shield } from 'lucide-react';
+import { Trophy, Clock, AlertTriangle, Play, CheckCircle, ArrowLeft, Shield, Medal, Users } from 'lucide-react';
 
-/* ── Custom Toast / Overlay for Anti-Cheat infractions ── */
+/* ── Infraction Overlay ─────────────────────────────────────────────────── */
 function InfractionOverlay({ count, max, type, message, onResolve }) {
     return (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-99999 flex items-center justify-center p-4">
@@ -35,7 +36,7 @@ function InfractionOverlay({ count, max, type, message, onResolve }) {
                         onClick={onResolve}
                         className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-sm transition-all duration-150 shadow-[0_4px_12px_rgba(220,38,38,0.3)] hover:-translate-y-0.5 cursor-pointer"
                     >
-                        Resume Contest & Enter Fullscreen
+                        Resume Contest &amp; Enter Fullscreen
                     </button>
                 )}
             </div>
@@ -43,6 +44,31 @@ function InfractionOverlay({ count, max, type, message, onResolve }) {
     );
 }
 
+/* ── Disqualification Screen ────────────────────────────────────────────── */
+function DisqualifiedScreen({ onLeave }) {
+    return (
+        <div className="h-screen bg-[#0d0f12] flex items-center justify-center p-6">
+            <div className="max-w-md w-full text-center">
+                <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Shield size={36} className="text-red-500" />
+                </div>
+                <h1 className="text-2xl font-extrabold text-red-500 mb-3">Disqualified</h1>
+                <p className="text-gray-400 text-sm leading-relaxed mb-8">
+                    You have been removed from this contest due to repeated integrity violations.
+                    Your session has been flagged and locked. Further submissions are blocked.
+                </p>
+                <button
+                    onClick={onLeave}
+                    className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg font-bold text-sm transition cursor-pointer"
+                >
+                    Back to Arena
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/* ── Mini Table Preview ─────────────────────────────────────────────────── */
 function MiniTable({ data }) {
     if (!data || !Array.isArray(data) || data.length === 0) {
         return <div className="text-gray-500 text-xs p-2">Empty Table</div>;
@@ -67,10 +93,44 @@ function MiniTable({ data }) {
     );
 }
 
+/* ── Leaderboard Panel ──────────────────────────────────────────────────── */
+function LeaderboardPanel({ entries, currentUserId }) {
+    if (!entries || entries.length === 0) {
+        return (
+            <div className="text-center py-8 text-gray-500 text-xs">
+                No participants yet.
+            </div>
+        );
+    }
+    return (
+        <div className="overflow-y-auto max-h-full">
+            {entries.map((entry) => (
+                <div
+                    key={entry.userId}
+                    className={`flex items-center gap-3 px-4 py-2.5 border-b border-gray-800/50 text-xs transition ${
+                        entry.userId === currentUserId ? 'bg-blue-500/5 border-l-2 border-l-blue-500' : ''
+                    } ${entry.isDisqualified ? 'opacity-40' : ''}`}
+                >
+                    <span className={`w-5 text-center font-bold ${entry.rank === 1 ? 'text-yellow-400' : entry.rank === 2 ? 'text-gray-300' : entry.rank === 3 ? 'text-amber-600' : 'text-gray-500'}`}>
+                        {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : entry.rank}
+                    </span>
+                    <span className={`flex-1 font-semibold truncate ${entry.userId === currentUserId ? 'text-blue-400' : 'text-gray-200'}`}>
+                        {entry.name} {entry.userId === currentUserId ? '(you)' : ''}
+                    </span>
+                    <span className="text-gray-400 font-mono">{entry.solved} solved</span>
+                    <span className="font-bold text-gray-100 w-12 text-right">{entry.isDisqualified ? 'DQ' : entry.score}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/* ── Main Component ─────────────────────────────────────────────────────── */
 export default function ContestWorkspace() {
     const { contestId } = useParams();
     const navigate = useNavigate();
     const { token, user } = useAuth();
+    const { socket } = useSocket();
 
     const [contest, setContest] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -85,16 +145,29 @@ export default function ContestWorkspace() {
     const [activeTab, setActiveTab] = useState('result'); // result, expected, submission
 
     // Submission states
-    const [submissionStatus, setSubmissionStatus] = useState(null); // success, fail, error
-    const [solvedQuestions, setSolvedQuestions] = useState(new Set()); // set of questionIds
+    const [submissionStatus, setSubmissionStatus] = useState(null);
+    const [submissionMessage, setSubmissionMessage] = useState('');
+    const [solvedQuestions, setSolvedQuestions] = useState(new Set());
 
     // Timer state
     const [timeLeftMs, setTimeLeftMs] = useState(0);
 
+    // Table preview tab
     const [activePreviewTable, setActivePreviewTable] = useState(null);
 
+    // Leaderboard
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [showLeaderboard, setShowLeaderboard] = useState(false);
+    const leaderboardPollRef = useRef(null);
+
+    // Server-side disqualification state
+    const [isServerDisqualified, setIsServerDisqualified] = useState(false);
+
+    // ── Active preview table on question change ────────────────────────────
+    const activeQuestion = contest?.questions?.[activeQuestionIdx] || null;
+
     useEffect(() => {
-        if (activeQuestion && activeQuestion.allTables) {
+        if (activeQuestion?.allTables) {
             const keys = Object.keys(activeQuestion.allTables);
             if (keys.length > 0) {
                 if (activeQuestion.dbTableName && keys.includes(activeQuestion.dbTableName)) {
@@ -106,32 +179,34 @@ export default function ContestWorkspace() {
         }
     }, [activeQuestionIdx, activeQuestion]);
 
-    // Load Local Drafts Hook
+    // ── Local Drafts ───────────────────────────────────────────────────────
     const { drafts, saveDraft, clearDrafts } = useLocalDraft(contestId, user?.id);
 
-    // Active state tracker for anti-cheat
+    // ── Anti-cheat active tracking ─────────────────────────────────────────
     const [isStarted, setIsStarted] = useState(false);
     const [activeViolation, setActiveViolation] = useState(null);
 
-    // Fetch contest data
+    // ── Fetch contest data ─────────────────────────────────────────────────
     const loadContest = useCallback(async () => {
         setLoading(true);
         const data = await fetchContestById(contestId, token);
         if (data) {
             setContest(data);
             
-            // Check if user is a participant
             const joined = data.participants?.some(p => p.userId === user?.id);
             setIsStarted(joined);
 
-            // Load initial solved question IDs if user joined
-            const userSubmissions = data.contestSubmissions || [];
-            const solved = new Set(
-                userSubmissions
-                    .filter(s => s.userId === user?.id && s.status === 'SUCCESS')
-                    .map(s => s.contestQuestionId)
+            // Check server-side disqualification from participant record
+            const myParticipant = data.participants?.find(p => p.userId === user?.id);
+            if (myParticipant?.isDisqualified) {
+                setIsServerDisqualified(true);
+            }
+
+            // Load initial solved question IDs
+            const userSubmissions = (data.contestSubmissions || []).filter(
+                s => s.userId === user?.id && s.status === 'SUCCESS'
             );
-            setSolvedQuestions(solved);
+            setSolvedQuestions(new Set(userSubmissions.map(s => s.contestQuestionId)));
         }
         setLoading(false);
     }, [contestId, token, user]);
@@ -142,9 +217,40 @@ export default function ContestWorkspace() {
         }
     }, [contestId, token, loadContest]);
 
-    const activeQuestion = contest?.questions?.[activeQuestionIdx] || null;
+    // ── Fetch leaderboard ──────────────────────────────────────────────────
+    const loadLeaderboard = useCallback(async () => {
+        if (!contestId || !token) return;
+        const data = await fetchContestLeaderboard(contestId, token);
+        setLeaderboard(data);
+    }, [contestId, token]);
 
-    // Load draft when question changes
+    // Poll leaderboard every 15s when contest is active and leaderboard panel is open
+    useEffect(() => {
+        if (!isStarted) return;
+        loadLeaderboard(); // initial fetch
+
+        leaderboardPollRef.current = setInterval(loadLeaderboard, 15000);
+        return () => clearInterval(leaderboardPollRef.current);
+    }, [isStarted, loadLeaderboard]);
+
+    // ── Socket.IO: join contest room & listen for score updates ───────────
+    useEffect(() => {
+        if (!socket || !contestId || !isStarted) return;
+
+        socket.emit('join_contest_room', parseInt(contestId));
+
+        const handleScoreUpdate = ({ leaderboard: updatedBoard }) => {
+            setLeaderboard(updatedBoard);
+        };
+        socket.on('score_update', handleScoreUpdate);
+
+        return () => {
+            socket.off('score_update', handleScoreUpdate);
+            socket.emit('leave_contest_room', parseInt(contestId));
+        };
+    }, [socket, contestId, isStarted]);
+
+    // ── Load draft on question change ──────────────────────────────────────
     useEffect(() => {
         if (activeQuestion) {
             const savedDraft = drafts[activeQuestion.id];
@@ -156,19 +262,17 @@ export default function ContestWorkspace() {
             setResults([]);
             setErrorMessage(null);
             setSubmissionStatus(null);
+            setSubmissionMessage('');
             setActiveTab('result');
         }
     }, [activeQuestionIdx, activeQuestion, drafts]);
 
-    // Handle code changes in Monaco Editor
     const handleCodeChange = (val) => {
         setQuery(val);
-        if (activeQuestion) {
-            saveDraft(activeQuestion.id, val);
-        }
+        if (activeQuestion) saveDraft(activeQuestion.id, val);
     };
 
-    // Countdown Timer logic
+    // ── Countdown Timer ────────────────────────────────────────────────────
     useEffect(() => {
         if (!contest || !isStarted) return;
 
@@ -187,7 +291,6 @@ export default function ContestWorkspace() {
     }, [contest, isStarted]);
 
     const handleTimeExpired = async () => {
-        // Submit last draft if available
         if (activeQuestion && query) {
             try {
                 await submitContestSolution(contestId, activeQuestion.id, query, token);
@@ -200,29 +303,42 @@ export default function ContestWorkspace() {
         navigate('/contests');
     };
 
-    // Anti-Cheat Callbacks
+    // ── Anti-Cheat ─────────────────────────────────────────────────────────
     const handleViolation = useCallback(({ type, message, count }) => {
         setActiveViolation({ type, message, count });
     }, []);
 
     const handleDisqualification = useCallback(async () => {
-        // Auto-submit current code
         if (activeQuestion && query) {
-            try {
-                await submitContestSolution(contestId, activeQuestion.id, query, token);
-            } catch {}
+            try { await submitContestSolution(contestId, activeQuestion.id, query, token); } catch {}
         }
         clearDrafts();
-        alert("You have been disqualified due to multiple integrity violations!");
+        setIsServerDisqualified(true);
         navigate('/contests');
     }, [contestId, activeQuestion, query, token, clearDrafts, navigate]);
 
-    // Anti-Cheat Hook initialization
+    /**
+     * Server-report callback: fires on each infraction detected by the hook.
+     * POSTs to the backend; if the server responds with isDisqualified, we enforce it.
+     */
+    const handleServerReport = useCallback(async (type) => {
+        try {
+            const result = await reportInfraction(contestId, type, token);
+            if (result.isDisqualified) {
+                setIsServerDisqualified(true);
+                clearDrafts();
+            }
+        } catch (e) {
+            console.error("Failed to report infraction to server:", e);
+        }
+    }, [contestId, token, clearDrafts]);
+
     const { infractions, isFullscreen, enterFullscreen } = useAntiCheat({
-        isActive: isStarted && timeLeftMs > 0 && !activeViolation,
+        isActive: isStarted && timeLeftMs > 0 && !activeViolation && !isServerDisqualified,
         maxInfractions: 3,
         onViolation: handleViolation,
-        onLimitExceeded: handleDisqualification
+        onLimitExceeded: handleDisqualification,
+        onServerReport: handleServerReport
     });
 
     const handleResolveViolation = () => {
@@ -230,28 +346,25 @@ export default function ContestWorkspace() {
         enterFullscreen();
     };
 
-    // Start contest join handler
+    // ── Join contest ───────────────────────────────────────────────────────
     const handleStartContest = async () => {
         try {
             await joinContest(contestId, token);
             setIsStarted(true);
             await loadContest();
-            setTimeout(() => {
-                enterFullscreen();
-            }, 500);
+            setTimeout(() => { enterFullscreen(); }, 500);
         } catch (e) {
             alert(e.message || "Failed to join contest.");
         }
     };
 
-    // Run query sandbox handler
+    // ── Run query (dry run) ────────────────────────────────────────────────
     const handleRunQuery = async () => {
         if (!activeQuestion) return;
         setExecuting(true);
         setErrorMessage(null);
         setResults([]);
         
-        // Target backend execution logic
         try {
             const res = await fetch(`http://localhost:3000/api/contests/${contestId}/execute`, {
                 method: 'POST',
@@ -276,23 +389,25 @@ export default function ContestWorkspace() {
         }
     };
 
-    // Submit solution handler
+    // ── Submit solution ────────────────────────────────────────────────────
     const handleSubmitSolution = async () => {
         if (!activeQuestion) return;
         setExecuting(true);
         setErrorMessage(null);
         setSubmissionStatus(null);
+        setSubmissionMessage('');
 
         try {
             const data = await submitContestSolution(contestId, activeQuestion.id, query, token);
             setExecuting(false);
             if (data.isCorrect) {
                 setSubmissionStatus('SUCCESS');
+                setSubmissionMessage(data.message || '✅ Correct!');
                 setSolvedQuestions(prev => new Set([...prev, activeQuestion.id]));
-                // Update specific status and score in contest view
                 loadContest();
             } else {
                 setSubmissionStatus('FAIL');
+                setSubmissionMessage(data.message || '❌ Incorrect solution');
             }
             setResults(Array.isArray(data.results) ? data.results : []);
             setActiveTab('submission');
@@ -304,7 +419,7 @@ export default function ContestWorkspace() {
         }
     };
 
-    // Format remaining time to MM:SS
+    // ── Format time ────────────────────────────────────────────────────────
     const formatTime = (ms) => {
         const totalSecs = Math.floor(ms / 1000);
         const mins = Math.floor(totalSecs / 60);
@@ -312,6 +427,7 @@ export default function ContestWorkspace() {
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     };
 
+    // ── Render guards ──────────────────────────────────────────────────────
     if (loading) {
         return (
             <div className="h-screen flex items-center justify-center bg-[#0d0f12] text-white">
@@ -329,7 +445,7 @@ export default function ContestWorkspace() {
                 <div className="text-center max-w-md">
                     <h2 className="text-xl font-bold text-red-500 mb-2">Contest Not Found</h2>
                     <p className="text-gray-400 mb-6">The contest session does not exist or has been deleted.</p>
-                    <button onClick={() => navigate('/contests')} className="px-5 py-2.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700">
+                    <button onClick={() => navigate('/contests')} className="px-5 py-2.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 cursor-pointer">
                         Back to Arena
                     </button>
                 </div>
@@ -337,7 +453,12 @@ export default function ContestWorkspace() {
         );
     }
 
-    // Start Screen overlay if not joined
+    // Server-confirmed disqualification screen
+    if (isServerDisqualified) {
+        return <DisqualifiedScreen onLeave={() => navigate('/contests')} />;
+    }
+
+    // Pre-join start screen
     if (!isStarted) {
         const start = new Date(contest.startTime);
         const end = new Date(contest.endTime);
@@ -371,10 +492,17 @@ export default function ContestWorkspace() {
                         </div>
                     </div>
 
+                    {/* Scoring info */}
+                    <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-4 mb-8 text-xs text-gray-400 space-y-1">
+                        <div className="font-bold text-blue-400 mb-2 text-sm">Scoring System</div>
+                        <div>🟢 EASY — 100 base pts &nbsp;|&nbsp; 🟡 MEDIUM — 200 base pts &nbsp;|&nbsp; 🔴 HARD — 350 base pts</div>
+                        <div>−15 pts per wrong attempt &nbsp;|&nbsp; −5 pts per 5-minute bracket elapsed</div>
+                    </div>
+
                     <div className="border-t border-gray-800/60 pt-8 flex items-center justify-between">
                         <button
                             onClick={() => navigate('/contests')}
-                            className="px-6 py-3 bg-transparent text-gray-400 hover:text-white flex items-center gap-2 text-sm font-semibold transition"
+                            className="px-6 py-3 bg-transparent text-gray-400 hover:text-white flex items-center gap-2 text-sm font-semibold transition cursor-pointer border-none"
                         >
                             <ArrowLeft size={16} /> Leave Arena
                         </button>
@@ -400,10 +528,11 @@ export default function ContestWorkspace() {
         );
     }
 
+    // ── Main workspace ─────────────────────────────────────────────────────
     return (
         <div className="h-screen flex flex-col bg-[#0d0f12] text-gray-200 overflow-hidden font-sans">
             
-            {/* Infraction Alert Popups */}
+            {/* Infraction Alert */}
             {activeViolation && (
                 <InfractionOverlay
                     count={activeViolation.count}
@@ -419,7 +548,7 @@ export default function ContestWorkspace() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={async () => {
-                            if (window.confirm("Are you sure you want to pause/leave the contest? Your drafts will remain, but the clock will keep ticking!")) {
+                            if (window.confirm("Are you sure you want to leave? Your drafts remain, but the clock keeps ticking!")) {
                                 navigate('/contests');
                             }
                         }}
@@ -433,14 +562,31 @@ export default function ContestWorkspace() {
                     </span>
                 </div>
 
-                {/* Clock / Timer & Security indicator */}
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                    {/* Leaderboard toggle */}
+                    <button
+                        onClick={() => { setShowLeaderboard(prev => !prev); if (!showLeaderboard) loadLeaderboard(); }}
+                        className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1 border rounded-md transition cursor-pointer bg-transparent ${
+                            showLeaderboard
+                                ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/5'
+                                : 'text-gray-400 border-gray-800 hover:text-gray-200'
+                        }`}
+                    >
+                        <Medal size={13} /> Leaderboard
+                    </button>
+
+                    {/* Anti-cheat indicator */}
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400 px-3 py-1 bg-gray-800/35 border border-gray-800 rounded-md">
                         <Shield size={14} className={isFullscreen ? "text-green-500" : "text-red-500"} />
                         <span>Strikes: {infractions} / 3</span>
                     </div>
 
-                    <div className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-red-950/20 border border-red-800/30 text-red-400 font-mono font-bold text-sm tracking-wide shadow-md">
+                    {/* Countdown */}
+                    <div className={`flex items-center gap-2 px-4 py-1.5 rounded-lg font-mono font-bold text-sm tracking-wide shadow-md border ${
+                        timeLeftMs < 5 * 60 * 1000
+                            ? 'bg-red-950/30 border-red-700/40 text-red-400'
+                            : 'bg-gray-900/50 border-gray-800 text-gray-300'
+                    }`}>
                         <Clock size={16} />
                         {formatTime(timeLeftMs)}
                     </div>
@@ -449,11 +595,11 @@ export default function ContestWorkspace() {
 
             {/* ── MAIN WORKSPACE CONTAINER ── */}
             <div className="flex-1 flex overflow-hidden">
-                
-                {/* 1. LEFT SIDEBAR: QUESTION LIST & SELECTED QUESTION DETAIL */}
-                <div className="w-[38%] border-r border-gray-850 bg-[#11141b]/95 flex flex-col shrink-0 overflow-hidden">
+
+                {/* 1. LEFT SIDEBAR: QUESTION LIST + DETAIL */}
+                <div className={`border-r border-gray-850 bg-[#11141b]/95 flex flex-col shrink-0 overflow-hidden transition-all duration-200 ${showLeaderboard ? 'w-[28%]' : 'w-[38%]'}`}>
                     
-                    {/* Question Switcher Tabs */}
+                    {/* Question tabs */}
                     <div className="flex border-b border-gray-800 bg-[#11141b]/50 px-2 shrink-0">
                         {contest.questions?.map((q, idx) => {
                             const isSolved = solvedQuestions.has(q.id);
@@ -463,8 +609,8 @@ export default function ContestWorkspace() {
                                     key={q.id}
                                     onClick={() => setActiveQuestionIdx(idx)}
                                     className={`px-4 py-3 text-xs font-bold transition flex items-center gap-1.5 border-b-2 cursor-pointer bg-transparent ${
-                                        isActive 
-                                            ? 'text-blue-500 border-blue-500' 
+                                        isActive
+                                            ? 'text-blue-500 border-blue-500'
                                             : 'text-gray-400 border-transparent hover:text-gray-200'
                                     }`}
                                 >
@@ -475,7 +621,7 @@ export default function ContestWorkspace() {
                         })}
                     </div>
 
-                    {/* Question Content View */}
+                    {/* Question content */}
                     {activeQuestion ? (
                         <div className="flex-1 overflow-y-auto p-6 space-y-6">
                             <div>
@@ -495,7 +641,7 @@ export default function ContestWorkspace() {
                                 <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{activeQuestion.description}</p>
                             </div>
 
-                            {/* Database table preview / Dataset Schema Inspector */}
+                            {/* Schema inspector (from cached tablePreviews) */}
                             {activeQuestion.allTables && Object.keys(activeQuestion.allTables).length > 0 ? (
                                 <div>
                                     <h3 className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">
@@ -526,7 +672,7 @@ export default function ContestWorkspace() {
                                 activeQuestion.dbTableName && (
                                     <div>
                                         <h3 className="text-xs font-bold text-gray-400 mb-2.5 uppercase tracking-wide">
-                                            Active Table Preview · <span className="text-blue-400 font-mono lowercase">{activeQuestion.dbTableName}</span>
+                                            Active Table · <span className="text-blue-400 font-mono lowercase">{activeQuestion.dbTableName}</span>
                                         </h3>
                                         <div className="bg-[#14181f] border border-gray-800/80 rounded-lg p-3 text-[0.72rem] font-mono text-gray-400">
                                             Use SQL queries to search and return correct outputs based on the schema mapping.
@@ -542,10 +688,24 @@ export default function ContestWorkspace() {
                     )}
                 </div>
 
-                {/* 2. RIGHT SIDEBAR: CODE EDITOR + WORKSPACE OUTPUTS */}
+                {/* 2. LEADERBOARD PANEL (collapsible) */}
+                {showLeaderboard && (
+                    <div className="w-[18%] shrink-0 border-r border-gray-800 bg-[#11141b] flex flex-col overflow-hidden">
+                        <div className="h-10 border-b border-gray-800 flex items-center px-4 shrink-0 gap-2">
+                            <Medal size={13} className="text-yellow-400" />
+                            <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">Leaderboard</span>
+                            <span className="ml-auto text-[0.6rem] text-gray-500">Live · 15s</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                            <LeaderboardPanel entries={leaderboard} currentUserId={user?.id} />
+                        </div>
+                    </div>
+                )}
+
+                {/* 3. RIGHT: CODE EDITOR + OUTPUTS */}
                 <div className="flex-1 flex flex-col overflow-hidden bg-[#14181f]/40">
                     
-                    {/* Monaco Editor Pane */}
+                    {/* Monaco Editor */}
                     <div className="flex-1 relative border-b border-gray-850">
                         <div className="absolute top-3 right-4 z-10">
                             <span className="text-[0.62rem] font-extrabold text-gray-400 bg-gray-900 border border-gray-800 px-2 py-0.5 rounded tracking-wide uppercase">
@@ -571,39 +731,26 @@ export default function ContestWorkspace() {
                         />
                     </div>
 
-                    {/* Output panel tabs */}
+                    {/* Output panel */}
                     <div className="h-[40%] flex flex-col bg-[#11141b] overflow-hidden">
                         
-                        {/* Tab header buttons */}
+                        {/* Tab header */}
                         <div className="h-10 bg-[#0d0f12] border-b border-gray-850 flex items-center justify-between px-4 shrink-0">
                             <div className="flex gap-1">
-                                <button
-                                    onClick={() => setActiveTab('result')}
-                                    className={`px-3 py-1.5 rounded text-xs font-bold transition cursor-pointer bg-transparent border-none ${
-                                        activeTab === 'result' ? 'text-blue-500 bg-blue-500/5' : 'text-gray-400 hover:text-gray-200'
-                                    }`}
-                                >
-                                    Console Output
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('expected')}
-                                    className={`px-3 py-1.5 rounded text-xs font-bold transition cursor-pointer bg-transparent border-none ${
-                                        activeTab === 'expected' ? 'text-blue-500 bg-blue-500/5' : 'text-gray-400 hover:text-gray-200'
-                                    }`}
-                                >
-                                    Expected Results
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('submission')}
-                                    className={`px-3 py-1.5 rounded text-xs font-bold transition cursor-pointer bg-transparent border-none ${
-                                        activeTab === 'submission' ? 'text-blue-500 bg-blue-500/5' : 'text-gray-400 hover:text-gray-200'
-                                    }`}
-                                >
-                                    Submission Result
-                                </button>
+                                {['result', 'expected', 'submission'].map((tab) => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`px-3 py-1.5 rounded text-xs font-bold transition cursor-pointer bg-transparent border-none ${
+                                            activeTab === tab ? 'text-blue-500 bg-blue-500/5' : 'text-gray-400 hover:text-gray-200'
+                                        }`}
+                                    >
+                                        {tab === 'result' ? 'Console Output' : tab === 'expected' ? 'Expected Results' : 'Submission Result'}
+                                    </button>
+                                ))}
                             </div>
 
-                            {/* Workspace Buttons */}
+                            {/* Action buttons */}
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleRunQuery}
@@ -614,15 +761,19 @@ export default function ContestWorkspace() {
                                 </button>
                                 <button
                                     onClick={handleSubmitSolution}
-                                    disabled={executing}
+                                    disabled={executing || solvedQuestions.has(activeQuestion?.id)}
                                     className="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-xs border-none transition cursor-pointer disabled:opacity-40 shadow-md"
                                 >
-                                    {executing && activeTab === 'submission' ? "Submitting..." : "Submit Answer"}
+                                    {solvedQuestions.has(activeQuestion?.id)
+                                        ? "✓ Solved"
+                                        : executing && activeTab === 'submission'
+                                            ? "Submitting..."
+                                            : "Submit Answer"}
                                 </button>
                             </div>
                         </div>
 
-                        {/* Tab body rendering */}
+                        {/* Tab body */}
                         <div className="flex-1 overflow-auto p-4 font-mono text-xs">
                             
                             {activeTab === 'result' && (
@@ -687,15 +838,15 @@ export default function ContestWorkspace() {
                                         <CheckCircle size={20} className="shrink-0" />
                                         <div>
                                             <div className="font-bold text-sm">Correct Answer!</div>
-                                            <p className="text-[0.75rem] text-gray-400 mt-1">Your query outputs match the expected contest validation matrix. Points added to leaderboard!</p>
+                                            <p className="text-[0.75rem] text-gray-400 mt-1">{submissionMessage}</p>
                                         </div>
                                     </div>
                                 ) : submissionStatus === 'FAIL' ? (
                                     <div className="text-red-500 bg-red-950/15 border border-red-950 rounded-lg p-5 flex items-start gap-3">
                                         <AlertTriangle size={20} className="shrink-0" />
                                         <div>
-                                            <div className="font-bold text-sm">Wrong Answer!</div>
-                                            <p className="text-[0.75rem] text-gray-400 mt-1">Your query outputs do not match the expected validation matrix. Please review columns, ordering, or aggregates.</p>
+                                            <div className="font-bold text-sm">Wrong Answer</div>
+                                            <p className="text-[0.75rem] text-gray-400 mt-1">Output does not match expected. Review columns, ordering, or aggregations.</p>
                                         </div>
                                     </div>
                                 ) : submissionStatus === 'ERROR' ? (
@@ -716,6 +867,11 @@ export default function ContestWorkspace() {
                             <span className={executing ? 'text-blue-500' : 'text-green-500'}>
                                 {executing ? '● EXECUTING' : '● READY'}
                             </span>
+                            {leaderboard.length > 0 && (
+                                <span className="text-gray-600">
+                                    {leaderboard.length} participant{leaderboard.length !== 1 ? 's' : ''}
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
