@@ -1,14 +1,14 @@
 import { DatabaseSync } from "node:sqlite";
 
 /**
- * SQL Worker Thread (Piscina Version)
+ * SQL Worker Process
  * Uses Node.js 22+ built-in sqlite driver for maximum stability in ESM.
  */
 
 let cachedDb = null;
 let cachedInitSql = null;
 
-export default function ({ initSql, userCode }) {
+export default function execute({ initSql, userCode }) {
     try {
         if (!cachedDb || cachedInitSql !== initSql) {
             if (cachedDb) {
@@ -58,3 +58,12 @@ export default function ({ initSql, userCode }) {
         }
     }
 }
+
+if (process.send) {
+    process.on("message", (task) => {
+        const result = execute(task);
+        process.send(result);
+    });
+}
+
+
