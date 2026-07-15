@@ -52,7 +52,7 @@ export function SqlExecutionWindow() {
   const { toasts, add, dismiss } = useToast();
 
   const [question, setQuestion]             = useState(null);
-  const [query, setQuery]                   = useState('SELECT * FROM employees');
+  const [query, setQuery]                   = useState('Type out your query here');
   const [results, setResults]               = useState([]);
   const [history, setHistory]               = useState([]);
   const [errorMessage, setErrorMessage]     = useState(null);

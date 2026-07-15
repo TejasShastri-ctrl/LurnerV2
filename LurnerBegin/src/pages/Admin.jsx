@@ -372,7 +372,7 @@ const Admin = () => {
             }
 
             const payload = {
-                ...contestFormData,
+                ...contestFormData, startTime: new Date(contestFormData.startTime).toISOString(), endTime: new Date(contestFormData.endTime).toISOString(),
                 questions: formattedQuestions
             };
 
